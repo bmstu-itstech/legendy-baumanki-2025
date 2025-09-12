@@ -60,7 +60,7 @@ pub struct GroupName(String);
 
 impl GroupName {
     pub fn new(s: impl Into<String>) -> Result<Self, DomainError> {
-        let group_regex: Regex = Regex::new("^[А-Я]{1,3}1?[0-9][КИЦ]?-[1-9]?[0-9][АБМ]?$").unwrap();
+        let group_regex: Regex = Regex::new("^[А-Я]{1,3}1?[0-9]?[КИЦ]?-[1-9]?[0-9][АБМ]?$").unwrap();
 
         let s = s.into().to_uppercase();
         if !group_regex.is_match(&s) {
