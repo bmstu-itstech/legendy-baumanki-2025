@@ -155,6 +155,8 @@ async fn receive_group_name(
                                 prompt_menu(bot, msg, dialogue, team_id_opt.is_some()).await?;
                             }
                         }
+                    } else {
+                        prompt_menu(bot, msg, dialogue, team_id_opt.is_some()).await?;
                     }
                 }
             }
