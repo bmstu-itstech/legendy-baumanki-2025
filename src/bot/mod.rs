@@ -7,6 +7,7 @@ mod fsm;
 mod handlers;
 mod keyboards;
 mod texts;
+mod resources;
 
 pub type BotHandlerResult = Result<(), AppError>;
 

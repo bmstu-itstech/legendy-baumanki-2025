@@ -1,7 +1,7 @@
 use teloxide::dispatching::UpdateHandler;
 use teloxide::macros::BotCommands;
 use teloxide::prelude::*;
-use teloxide::types::ParseMode;
+use teloxide::types::{InputFile, InputMedia, InputMediaPhoto, ParseMode};
 
 use crate::app::error::AppError;
 use crate::app::usecases::{CheckRegistered, GetUserTeam, JoinTeam};
@@ -11,6 +11,7 @@ use crate::bot::handlers::menu::{
 };
 use crate::bot::handlers::registration::prompt_pd_agreement;
 use crate::bot::{BotHandlerResult, texts};
+use crate::bot::resources::{RULES_IMAGE_1, RULES_IMAGE_2};
 use crate::domain::error::DomainError;
 use crate::domain::models::{TeamID, UserID};
 
@@ -89,6 +90,13 @@ async fn handle_start_command(
 }
 
 async fn send_greeting_message(bot: &Bot, msg: &Message) -> BotHandlerResult {
+    let media_group = vec![
+        InputMedia::Photo(InputMediaPhoto::new(InputFile::file_id(RULES_IMAGE_1.into()))),
+        InputMedia::Photo(InputMediaPhoto::new(InputFile::file_id(RULES_IMAGE_2.into())))
+    ];
+    
+    bot.send_media_group(msg.chat.id, media_group).await?;
+
     bot.send_message(msg.chat.id, texts::GREETING_MSG)
         .parse_mode(ParseMode::Html)
         .await?;
