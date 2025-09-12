@@ -137,16 +137,17 @@ impl Team {
             return Err(DomainError::UserNotFound(member_id.as_i64()));
         }
         if member_id == self.captain_id {
-            return if self.member_ids.len() > 1 {
-                Err(DomainError::NotAllowed(
-                    "cannot remove captain of team".to_string(),
-                ))
+            if self.member_ids.len() > 1 {
+                self.member_ids.retain(|id| *id != member_id);
+                self.captain_id = *self.member_ids.first().unwrap();
+                Ok(Some(self))
             } else {
                 Ok(None)
-            };
+            }
+        } else {
+            self.member_ids.retain(|id| *id != member_id);
+            Ok(Some(self))
         }
-        self.member_ids.retain(|id| *id != member_id);
-        Ok(Some(self))
     }
 
     pub fn id(&self) -> &TeamID {
