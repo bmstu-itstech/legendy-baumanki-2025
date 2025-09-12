@@ -155,7 +155,7 @@ pub fn my_team(team: TeamWithMembersDTO, invite_link: &str) -> String {
                 .username
                 .clone()
                 .map(|u| u.to_string())
-                .unwrap_or("<без @никнейма>".to_string())
+                .unwrap_or("(без никнейма)".to_string())
         })
         .fold(String::new(), |acc, username| {
             acc + format!("@{username}\n").as_str()
