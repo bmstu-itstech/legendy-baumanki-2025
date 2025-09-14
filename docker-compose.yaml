@@ -1,10 +1,13 @@
 services:
   bot:
     container_name: lb-bot
-    build: .
+    build:
+      context: .
+      args:
+        PROJECT_NAME: legendy-baumanki-2025
     env_file: .env
     environment:
-      DATABASE_URI: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+      DATABASE_URI: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
     depends_on:
       - db
     networks:
@@ -37,7 +40,7 @@ services:
       - web-lb
     volumes:
       - ./migrations:/migrations
-    command: [ "-path", "/migrations", "-database", "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}?sslmode=disable", "up" ]
+    command: [ "-path", "/migrations", "-database", "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable", "up" ]
     depends_on:
       db:
         condition: service_healthy
