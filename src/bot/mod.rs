@@ -6,8 +6,8 @@ pub mod dispatcher;
 mod fsm;
 mod handlers;
 mod keyboards;
-mod texts;
 mod resources;
+mod texts;
 
 pub type BotHandlerResult = Result<(), AppError>;
 

@@ -4,7 +4,11 @@ use tokio_postgres::{Client, GenericClient};
 use tokio_postgres::{Row, Transaction};
 
 use crate::app::error::AppError;
-use crate::app::ports::{IsAdminProvider, IsRegisteredUserProvider, IsTeamExistsProvider, MediaProvider, MediaRepository, TeamByMemberProvider, TeamProvider, TeamRepository, UserProvider, UserRepository};
+use crate::app::ports::{
+    IsAdminProvider, IsRegisteredUserProvider, IsTeamExistsProvider, MediaProvider,
+    MediaRepository, TeamByMemberProvider, TeamProvider, TeamRepository, UserProvider,
+    UserRepository,
+};
 use crate::domain::error::DomainError;
 use crate::domain::models::{
     FileID, FullName, GroupName, Media, MediaID, MediaType as DomainMediaType, Team, TeamID,
@@ -22,7 +26,7 @@ impl PostgresRepository {
     }
 }
 
-pub struct UserRow {
+struct UserRow {
     id: i64,
     username: Option<String>,
     full_name: String,
@@ -40,7 +44,7 @@ impl UserRow {
     }
 }
 
-pub struct TeamRow {
+struct TeamRow {
     id: String,
     name: String,
     captain_id: i64,
@@ -318,7 +322,7 @@ impl IsTeamExistsProvider for PostgresRepository {
 
 #[async_trait::async_trait]
 impl UserRepository for PostgresRepository {
-    async fn save(&self, user: User) -> Result<(), AppError> {
+    async fn save_user(&self, user: User) -> Result<(), AppError> {
         with_client!(self.pool, async |client: &Client| {
             client
                 .execute(
@@ -353,7 +357,7 @@ impl UserRepository for PostgresRepository {
 
 #[async_trait::async_trait]
 impl TeamRepository for PostgresRepository {
-    async fn save(&self, team: Team) -> Result<(), AppError> {
+    async fn save_team(&self, team: Team) -> Result<(), AppError> {
         with_transaction!(self.pool, async |tx: &Transaction| {
             tx.execute(
                 r#"
@@ -411,7 +415,7 @@ impl TeamRepository for PostgresRepository {
         })
     }
 
-    async fn delete(&self, team_id: &TeamID) -> Result<(), AppError> {
+    async fn delete_team(&self, team_id: &TeamID) -> Result<(), AppError> {
         with_client!(self.pool, async |client: &Client| {
             client
                 .execute(
@@ -484,11 +488,7 @@ impl MediaRepository for PostgresRepository {
                         file_id = $2, 
                         media_type = $3
                     "#,
-                    &[
-                        &media.id().as_str(),
-                        &media.file_id().as_str(),
-                        &media_type,
-                    ],
+                    &[&media.id().as_str(), &media.file_id().as_str(), &media_type],
                 )
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;

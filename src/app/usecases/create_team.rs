@@ -22,7 +22,7 @@ impl CreateTeam {
     ) -> Result<TeamDTO, AppError> {
         let team = Team::new(name, captain_id);
         let dto = team.clone().into();
-        self.repos.save(team).await?;
+        self.repos.save_team(team).await?;
         Ok(dto)
     }
 }

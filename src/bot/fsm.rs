@@ -19,7 +19,7 @@ pub enum BotState {
     TeamCode,
     TeamName,
     ExitApproval,
-    
+
     // Admin
     Media(MediaID),
 }

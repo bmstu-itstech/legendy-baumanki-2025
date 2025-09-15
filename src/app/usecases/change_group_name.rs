@@ -17,7 +17,7 @@ impl ChangeGroupName {
     pub async fn change_group_name(&self, user_id: UserID, new: GroupName) -> Result<(), AppError> {
         let mut user = self.repos.user(user_id).await?;
         user.change_group_name(new);
-        self.repos.save(user).await?;
+        self.repos.save_user(user).await?;
         Ok(())
     }
 }

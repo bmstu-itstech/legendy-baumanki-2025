@@ -10,7 +10,7 @@ pub enum AppError {
 
     #[error("media {0:?} not found")]
     MediaNotFound(MediaID),
-    
+
     #[error(transparent)]
     Internal(#[from] StdError),
 }

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::domain::error::DomainError;
+use serde::{Deserialize, Serialize};
 
 pub const MEDIA_ID_MAX_LENGTH: usize = 64;
 
@@ -15,7 +15,9 @@ pub struct MediaID(String);
 impl MediaID {
     pub fn new(id: String) -> Result<Self, DomainError> {
         if id == "" {
-            return Err(DomainError::InvalidValue("invalid media id: not empty string".to_string()));
+            return Err(DomainError::InvalidValue(
+                "invalid media id: not empty string".to_string(),
+            ));
         }
         if id.len() > MEDIA_ID_MAX_LENGTH {
             return Err(DomainError::InvalidValue(format!(
@@ -35,10 +37,7 @@ impl MediaID {
     }
 }
 
-#[derive(
-    Clone,
-    Debug,
-)]
+#[derive(Clone, Debug)]
 pub struct FileID(String);
 
 impl FileID {
@@ -69,11 +68,11 @@ impl Media {
             media_type,
         }
     }
-    
+
     pub fn image(id: MediaID, file_id: FileID) -> Self {
         Self::new(id, file_id, MediaType::Image)
     }
-    
+
     pub fn video_note(id: MediaID, file_id: FileID) -> Self {
         Self::new(id, file_id, MediaType::VideoNote)
     }

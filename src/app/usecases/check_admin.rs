@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::app::error::AppError;
-use crate::app::ports::{IsAdminProvider, IsRegisteredUserProvider};
+use crate::app::ports::IsAdminProvider;
 use crate::domain::models::UserID;
 
 #[derive(Clone)]

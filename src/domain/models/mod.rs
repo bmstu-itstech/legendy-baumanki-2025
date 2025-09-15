@@ -1,7 +1,7 @@
+mod media;
 mod team;
 mod user;
-mod media;
 
+pub use media::*;
 pub use team::*;
 pub use user::*;
-pub use media::*;

@@ -17,7 +17,7 @@ impl ChangeFullName {
     pub async fn change_full_name(&self, user_id: UserID, new: FullName) -> Result<(), AppError> {
         let mut user = self.repos.user(user_id).await?;
         user.change_full_name(new);
-        self.repos.save(user).await?;
+        self.repos.save_user(user).await?;
         Ok(())
     }
 }

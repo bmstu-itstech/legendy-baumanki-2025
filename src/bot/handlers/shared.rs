@@ -2,7 +2,7 @@ use teloxide::prelude::*;
 use teloxide::types::{FileId as TelegramFileId, InputFile, KeyboardRemove, ParseMode};
 
 use crate::bot::{BotHandlerResult, texts};
-use crate::domain::models::{FileID, Media, MediaID, MediaType};
+use crate::domain::models::{FileID, Media, MediaType};
 
 pub async fn send_enter_message(bot: &Bot, msg: &Message) -> BotHandlerResult {
     bot.send_message(msg.chat.id, texts::ENTER_MESSAGE_TEXT)
@@ -42,8 +42,7 @@ pub async fn send_media(bot: &Bot, msg: &Message, media: Media, caption: &str) -
                 .await?;
         }
         MediaType::VideoNote => {
-            bot.send_video_note(msg.chat.id, media.into())
-                .await?;
+            bot.send_video_note(msg.chat.id, media.into()).await?;
             bot.send_message(msg.chat.id, caption)
                 .parse_mode(ParseMode::Html)
                 .await?;

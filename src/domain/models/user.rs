@@ -60,7 +60,8 @@ pub struct GroupName(String);
 
 impl GroupName {
     pub fn new(s: impl Into<String>) -> Result<Self, DomainError> {
-        let group_regex: Regex = Regex::new(r"^[А-Я]{1,3}1?[0-9]?[КИЦ]?-[1-9][0-9]?(\.[1-9])?[0-9][АБМ]?$").unwrap();
+        let group_regex: Regex =
+            Regex::new(r"^[А-Я]{1,3}1?[0-9]?[КИЦ]?-[1-9][0-9]?(\.[1-9])?[0-9][АБМ]?$").unwrap();
 
         let s = s.into().to_uppercase();
         if !group_regex.is_match(&s) {
@@ -72,7 +73,8 @@ impl GroupName {
     }
 
     pub fn is_first_course(&self) -> bool {
-        let first_course_regex: Regex = Regex::new(r"^[А-Я]{1,3}1?[0-9]?[КИЦ]?-1(\.[1-9])?[0-9][АБМ]?$").unwrap();
+        let first_course_regex: Regex =
+            Regex::new(r"^[А-Я]{1,3}1?[0-9]?[КИЦ]?-1(\.[1-9])?[0-9][АБМ]?$").unwrap();
         first_course_regex.is_match(&self.0)
     }
 

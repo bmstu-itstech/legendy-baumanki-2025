@@ -17,8 +17,8 @@ impl RemoveMember {
     pub async fn remove_member(&self, user_id: UserID, team_id: TeamID) -> Result<(), AppError> {
         let team = self.repos.team(team_id.clone()).await?;
         match team.remove_member(user_id).map_err(AppError::DomainError)? {
-            Some(team) => self.repos.save(team).await,
-            None => self.repos.delete(&team_id).await,
+            Some(team) => self.repos.save_team(team).await,
+            None => self.repos.delete_team(&team_id).await,
         }
     }
 }

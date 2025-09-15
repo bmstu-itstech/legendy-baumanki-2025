@@ -18,7 +18,7 @@ impl JoinTeam {
     pub async fn join_team(&self, user_id: UserID, team_id: TeamID) -> Result<TeamDTO, AppError> {
         let mut team = self.repos.team(team_id).await?;
         team.add_member(user_id).map_err(AppError::DomainError)?;
-        self.repos.save(team.clone()).await?;
+        self.repos.save_team(team.clone()).await?;
         Ok(team.into())
     }
 }

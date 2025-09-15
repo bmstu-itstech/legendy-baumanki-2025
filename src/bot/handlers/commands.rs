@@ -1,11 +1,12 @@
 use teloxide::dispatching::UpdateHandler;
 use teloxide::macros::BotCommands;
-use teloxide::payloads::GetMe;
 use teloxide::prelude::*;
 use teloxide::types::{InputFile, InputMedia, InputMediaPhoto, ParseMode};
 
 use crate::app::error::AppError;
-use crate::app::usecases::{CheckAdmin, CheckRegistered, GetMedia, GetUserTeam, JoinTeam, UploadMedia};
+use crate::app::usecases::{
+    CheckAdmin, CheckRegistered, GetMedia, GetUserTeam, JoinTeam, UploadMedia,
+};
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::menu::{
     prompt_menu, send_joining_team_successful, send_team_is_full, send_team_not_exists,
@@ -179,14 +180,26 @@ async fn receive_media(
         let media = Media::image(media_id.clone(), file_id.clone());
         upload_media.upload_media(media).await?;
         let media = get_media.media(media_id.clone()).await?;
-        send_media(&bot, &msg, media, &format!("<code>{}</code>", media_id.as_str())).await?;
+        send_media(
+            &bot,
+            &msg,
+            media,
+            &format!("<code>{}</code>", media_id.as_str()),
+        )
+        .await?;
         send_successful_media_uploaded(bot, msg, dialogue, &file_id).await?;
     } else if let Some(video_note) = msg.video_note() {
         let file_id = FileID::new(video_note.file.id.0.clone());
         let media = Media::video_note(media_id.clone(), file_id.clone());
         upload_media.upload_media(media).await?;
         let media = get_media.media(media_id.clone()).await?;
-        send_media(&bot, &msg, media, &format!("<code>{}</code>", media_id.as_str())).await?;
+        send_media(
+            &bot,
+            &msg,
+            media,
+            &format!("<code>{}</code>", media_id.as_str()),
+        )
+        .await?;
         send_successful_media_uploaded(bot, msg, dialogue, &file_id).await?;
     } else {
         send_unknown_media_format(bot, msg, dialogue).await?;

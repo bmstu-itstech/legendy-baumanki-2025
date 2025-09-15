@@ -10,8 +10,7 @@ use crate::app::usecases::{
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::shared::{send_enter_message, send_use_keyboard};
 use crate::bot::keyboards::{
-    make_menu_keyboard_with_team, make_menu_keyboard_without_team,
-    make_yes_and_back_keyboard,
+    make_menu_keyboard_with_team, make_menu_keyboard_without_team, make_yes_and_back_keyboard,
 };
 use crate::bot::{BotHandlerResult, keyboards, texts};
 use crate::domain::error::DomainError;

@@ -24,8 +24,8 @@ impl ExitTeam {
             Some(team) => {
                 let team_id = team.id().clone();
                 match team.remove_member(user_id).map_err(AppError::DomainError)? {
-                    Some(team) => self.repos.save(team).await,
-                    None => self.repos.delete(&team_id).await,
+                    Some(team) => self.repos.save_team(team).await,
+                    None => self.repos.delete_team(&team_id).await,
                 }
             }
         }

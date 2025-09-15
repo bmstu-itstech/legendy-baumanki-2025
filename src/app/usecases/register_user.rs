@@ -22,7 +22,7 @@ impl RegisterUser {
         group_name: GroupName,
     ) -> Result<User, AppError> {
         let user = User::new(id, username, full_name, group_name);
-        self.repos.save(user.clone()).await?;
+        self.repos.save_user(user.clone()).await?;
         Ok(user.into())
     }
 }

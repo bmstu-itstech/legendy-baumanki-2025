@@ -1,5 +1,6 @@
 use crate::domain::models::{
-    FullName, GroupName, MAX_TEAM_SIZE, Team, TeamID, TeamName, User, Username,
+    FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType, Team, TeamID, TeamName,
+    User, Username,
 };
 
 pub struct UserDTO {
@@ -51,4 +52,20 @@ pub struct TeamWithMembersDTO {
     pub max_size: usize,
     pub completed: bool,
     pub members: Vec<UserDTO>,
+}
+
+pub struct MediaDTO {
+    pub id: MediaID,
+    pub file_id: FileID,
+    pub media_type: MediaType,
+}
+
+impl From<Media> for MediaDTO {
+    fn from(m: Media) -> Self {
+        Self {
+            id: m.id().clone(),
+            file_id: m.file_id().clone(),
+            media_type: m.media_type().clone(),
+        }
+    }
 }

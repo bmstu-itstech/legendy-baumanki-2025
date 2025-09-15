@@ -114,7 +114,6 @@ pub const INVALID_UPLOAD_COMMAND_USAGE: StaticStr = "<b>❌ Неверный ф�
     Использование:\n\
     <code>/upload key</code>";
 
-
 pub const PROMPT_MEDIA: StaticStr = "📤 <b>Загрузка файла</b>\n\
     Отправьте файл (изображение или видеосообщение) в чат, чтобы получить его FileID.";
 
@@ -209,5 +208,8 @@ pub fn team_created(team: TeamDTO, invite_link: &str) -> String {
 }
 
 pub fn media_uploaded(file_id: &FileID) -> String {
-    format!("✅ <b>FileID получен!</b>\n<code>{}</code>", file_id.as_str())
+    format!(
+        "✅ <b>FileID получен!</b>\n<code>{}</code>",
+        file_id.as_str()
+    )
 }
