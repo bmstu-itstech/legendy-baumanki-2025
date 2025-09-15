@@ -17,16 +17,19 @@ impl BotDispatcher {
             .dependencies(dptree::deps![
                 app.change_full_name,
                 app.change_group_name,
+                app.check_admin,
                 app.check_registered,
                 app.check_team_exists,
                 app.create_team,
                 app.exit_team,
+                app.get_media,
                 app.get_profile,
                 app.get_team_with_members,
                 app.get_user_team,
                 app.join_team,
                 app.register_user,
                 app.remove_member,
+                app.upload_media,
                 InMemStorage::<BotState>::new()
             ])
             .default_handler(|upd| async move {

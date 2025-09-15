@@ -1,5 +1,5 @@
 use crate::app::error::AppError;
-use crate::domain::models::{Team, TeamID, User, UserID};
+use crate::domain::models::{Media, MediaID, Team, TeamID, User, UserID};
 
 #[async_trait::async_trait]
 pub trait UserProvider: Send + Sync {
@@ -28,11 +28,26 @@ pub trait IsTeamExistsProvider: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait UserRepository: UserProvider + Send + Sync {
-    async fn save(&self, user: User) -> Result<(), AppError>;
+    async fn save_user(&self, user: User) -> Result<(), AppError>;
 }
 
 #[async_trait::async_trait]
 pub trait TeamRepository: TeamProvider + Send + Sync {
-    async fn save(&self, team: Team) -> Result<(), AppError>;
-    async fn delete(&self, team_id: &TeamID) -> Result<(), AppError>;
+    async fn save_team(&self, team: Team) -> Result<(), AppError>;
+    async fn delete_team(&self, team_id: &TeamID) -> Result<(), AppError>;
+}
+
+#[async_trait::async_trait]
+pub trait IsAdminProvider: Send + Sync {
+    async fn is_admin(&self, user_id: UserID) -> Result<bool, AppError>;
+}
+
+#[async_trait::async_trait]
+pub trait MediaProvider: Send + Sync {
+    async fn media(&self, id: MediaID) -> Result<Media, AppError>;
+}
+
+#[async_trait::async_trait]
+pub trait MediaRepository: MediaProvider + Send + Sync {
+    async fn save_media(&self, media: Media) -> Result<(), AppError>;
 }

@@ -1,11 +1,15 @@
 use crate::app::usecases::dto::{Profile, TeamDTO, TeamWithMembersDTO};
-use crate::domain::models::TeamName;
+use crate::domain::models::{FileID, TeamName};
 
 type StaticStr = &'static str;
 
 pub const ENTER_MESSAGE_TEXT: StaticStr = "📝 Напиши мне текстовое сообщение";
+
 pub const USE_KEYBOARD: StaticStr =
     "Пожалуйста, используй кнопки клавиатуры внизу для ответа. Так будет удобнее!";
+
+pub const PERMISSION_DENIED: StaticStr = "<b>❌ Доступ запрещен</b>\n\
+    У вас недостаточно прав для использования этой команды.";
 
 pub const INVALID_INVITE_CODE: StaticStr = "❌ <b>Ой-ой!</b>\n\
      Этот код-приглашения не подходит. Проверь, что ввел все 6 символов правильно, и \
@@ -106,6 +110,17 @@ pub const SEND_APPROVAL_EXIT_TEAM: StaticStr =
 pub const SUCCESSFUL_EXIT_TEAM: StaticStr = "👋 <b>Ты вышел из команды</b>\n\
      Ты успешно покинул(а) команду. Теперь ты можешь вступить в новую, используя код-приглашение.";
 
+pub const INVALID_UPLOAD_COMMAND_USAGE: StaticStr = "<b>❌ Неверный формат команды</b>\n\
+    Использование:\n\
+    <code>/upload key</code>";
+
+
+pub const PROMPT_MEDIA: StaticStr = "📤 <b>Загрузка файла</b>\n\
+    Отправьте файл (изображение или видеосообщение) в чат, чтобы получить его FileID.";
+
+pub const UNKNOWN_MEDIA_FORMAT: StaticStr = "❌ <b>Формат не поддерживается</b>
+    Отправьте изображение или видеосообщение.";
+
 pub fn successful_joined_team(team_name: TeamName) -> String {
     format!(
         "🎉 <b>Ты в команде!</b>\n\
@@ -191,4 +206,8 @@ pub fn team_created(team: TeamDTO, invite_link: &str) -> String {
         team.id.as_str(),
         invite_link,
     )
+}
+
+pub fn media_uploaded(file_id: &FileID) -> String {
+    format!("✅ <b>FileID получен!</b>\n<code>{}</code>", file_id.as_str())
 }

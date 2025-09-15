@@ -1,14 +1,15 @@
 use deadpool_postgres::Pool;
+use postgres_types::{FromSql, ToSql};
 use tokio_postgres::{Client, GenericClient};
 use tokio_postgres::{Row, Transaction};
 
 use crate::app::error::AppError;
-use crate::app::ports::{
-    IsRegisteredUserProvider, IsTeamExistsProvider, TeamByMemberProvider, TeamProvider,
-    TeamRepository, UserProvider, UserRepository,
-};
+use crate::app::ports::{IsAdminProvider, IsRegisteredUserProvider, IsTeamExistsProvider, MediaProvider, MediaRepository, TeamByMemberProvider, TeamProvider, TeamRepository, UserProvider, UserRepository};
 use crate::domain::error::DomainError;
-use crate::domain::models::{FullName, GroupName, Team, TeamID, TeamName, User, UserID, Username};
+use crate::domain::models::{
+    FileID, FullName, GroupName, Media, MediaID, MediaType as DomainMediaType, Team, TeamID,
+    TeamName, User, UserID, Username,
+};
 use crate::{with_client, with_transaction};
 
 pub struct PostgresRepository {
@@ -51,6 +52,47 @@ impl TeamRow {
             id: row.try_get("id")?,
             name: row.try_get("name")?,
             captain_id: row.try_get("captain_id")?,
+        })
+    }
+}
+
+#[derive(Debug, ToSql, FromSql)]
+#[postgres(name = "media_type", rename_all = "snake_case")]
+enum MediaType {
+    Image,
+    VideoNote,
+}
+
+impl Into<DomainMediaType> for MediaType {
+    fn into(self) -> DomainMediaType {
+        match self {
+            MediaType::Image => DomainMediaType::Image,
+            MediaType::VideoNote => DomainMediaType::VideoNote,
+        }
+    }
+}
+
+impl From<DomainMediaType> for MediaType {
+    fn from(value: DomainMediaType) -> Self {
+        match value {
+            DomainMediaType::Image => MediaType::Image,
+            DomainMediaType::VideoNote => MediaType::VideoNote,
+        }
+    }
+}
+
+struct MediaRow {
+    id: String,
+    file_id: String,
+    media_type: MediaType,
+}
+
+impl MediaRow {
+    pub fn fetch_from_row(row: &Row) -> Result<MediaRow, tokio_postgres::Error> {
+        Ok(MediaRow {
+            id: row.try_get("id")?,
+            file_id: row.try_get("file_id")?,
+            media_type: row.try_get("media_type")?,
         })
     }
 }
@@ -383,6 +425,96 @@ impl TeamRepository for PostgresRepository {
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
             Ok(())
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl MediaProvider for PostgresRepository {
+    async fn media(&self, id: MediaID) -> Result<Media, AppError> {
+        with_client!(self.pool, async |client: &Client| {
+            let row_opt = client
+                .query_opt(
+                    r#"
+                SELECT
+                    id,
+                    file_id,
+                    media_type
+                FROM  media
+                WHERE id = $1
+                "#,
+                    &[&id.as_str()],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            if let Some(row) = row_opt {
+                let media_row =
+                    MediaRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
+                let media = Media::new(
+                    MediaID::new(media_row.id).map_err(AppError::DomainError)?,
+                    FileID::new(media_row.file_id),
+                    media_row.media_type.into(),
+                );
+                Ok(media)
+            } else {
+                Err(AppError::MediaNotFound(id))
+            }
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl MediaRepository for PostgresRepository {
+    async fn save_media(&self, media: Media) -> Result<(), AppError> {
+        let media_type: MediaType = media.media_type().into();
+        with_client!(self.pool, async |client: &Client| {
+            client
+                .execute(
+                    r#"
+                    INSERT INTO 
+                        media (
+                            id,
+                            file_id,
+                            media_type
+                        )
+                    VALUES
+                        ($1, $2, $3)
+                    ON CONFLICT (id) DO UPDATE SET
+                        file_id = $2, 
+                        media_type = $3
+                    "#,
+                    &[
+                        &media.id().as_str(),
+                        &media.file_id().as_str(),
+                        &media_type,
+                    ],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+            Ok(())
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl IsAdminProvider for PostgresRepository {
+    async fn is_admin(&self, user_id: UserID) -> Result<bool, AppError> {
+        with_client!(self.pool, async |client: &Client| {
+            let row = client
+                .query_opt(
+                    r#"
+                SELECT 1
+                FROM admins
+                WHERE
+                    user_id = $1
+                LIMIT 1
+                "#,
+                    &[&user_id.as_i64()],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+            Ok(row.is_some())
         })
     }
 }

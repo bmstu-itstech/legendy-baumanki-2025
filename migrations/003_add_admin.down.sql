@@ -1,0 +1,4 @@
+ALTER TABLE admins
+    DROP CONSTRAINT IF EXISTS fk_admin_users;
+
+DROP TABLE IF EXISTS admins;
