@@ -1,5 +1,5 @@
 use teloxide::prelude::*;
-use teloxide::types::{FileId as TelegramFileId, InputFile, KeyboardMarkup, KeyboardRemove, ParseMode};
+use teloxide::types::{FileId as TelegramFileId, InputFile, KeyboardRemove, ParseMode};
 
 use crate::bot::{BotHandlerResult, texts};
 use crate::domain::models::{FileID, Media, MediaType};

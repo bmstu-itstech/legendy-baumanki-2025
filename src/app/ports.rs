@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use crate::app::error::AppError;
 use crate::domain::models::{Media, MediaID, Task, TaskID, TaskType, Team, TeamID, User, UserID};
 

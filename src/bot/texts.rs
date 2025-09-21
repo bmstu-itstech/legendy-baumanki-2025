@@ -1,5 +1,5 @@
-use crate::app::usecases::dto::{Profile, TaskDTO, TeamDTO, TeamWithMembersDTO, UserTaskDTO};
-use crate::domain::models::{FileID, Points, TeamName};
+use crate::app::usecases::dto::{Profile, TeamDTO, TeamWithMembersDTO, UserTaskDTO};
+use crate::domain::models::{FileID, TeamName};
 
 type StaticStr = &'static str;
 
