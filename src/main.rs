@@ -3,11 +3,7 @@ use std::sync::Arc;
 use teloxide::prelude::*;
 
 use crate::app::usecases::app::App;
-use crate::app::usecases::{
-    ChangeFullName, ChangeGroupName, CheckAdmin, CheckRegistered, CheckTeamExists, CreateTeam,
-    ExitTeam, GetMedia, GetProfile, GetTeamWithMembers, GetUserTeam, JoinTeam, RegisterUser,
-    RemoveMember, UploadMedia,
-};
+use crate::app::usecases::{AnswerTask, ChangeFullName, ChangeGroupName, CheckAdmin, CheckRegistered, CheckTeamExists, CreateTeam, ExitTeam, GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam, JoinTeam, RegisterUser, RemoveMember, UploadMedia};
 use crate::bot::dispatcher::BotDispatcher;
 use crate::infra::postgres::PostgresRepository;
 use crate::utils::postgres::pool;
@@ -30,6 +26,7 @@ async fn main() {
     let repos = Arc::new(PostgresRepository::new(pool));
 
     let app = App {
+        answer_task: AnswerTask::new(repos.clone(), repos.clone()),
         change_full_name: ChangeFullName::new(repos.clone()),
         change_group_name: ChangeGroupName::new(repos.clone()),
         check_admin: CheckAdmin::new(repos.clone()),
@@ -39,7 +36,10 @@ async fn main() {
         exit_team: ExitTeam::new(repos.clone(), repos.clone()),
         get_media: GetMedia::new(repos.clone()),
         get_profile: GetProfile::new(repos.clone(), repos.clone()),
+        get_task: GetTask::new(repos.clone()),
         get_team_with_members: GetTeamWithMembers::new(repos.clone(), repos.clone()),
+        get_user_tasks: GetUserTasks::new(repos.clone(), repos.clone()),
+        get_user_task: GetUserTask::new(repos.clone(), repos.clone()),
         get_user_team: GetUserTeam::new(repos.clone()),
         join_team: JoinTeam::new(repos.clone()),
         register_user: RegisterUser::new(repos.clone()),

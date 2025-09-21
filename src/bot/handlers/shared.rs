@@ -1,5 +1,5 @@
 use teloxide::prelude::*;
-use teloxide::types::{FileId as TelegramFileId, InputFile, KeyboardRemove, ParseMode};
+use teloxide::types::{FileId as TelegramFileId, InputFile, KeyboardMarkup, KeyboardRemove, ParseMode};
 
 use crate::bot::{BotHandlerResult, texts};
 use crate::domain::models::{FileID, Media, MediaType};
@@ -33,7 +33,12 @@ pub async fn send_permission_denied(bot: &Bot, msg: &Message) -> BotHandlerResul
     Ok(())
 }
 
-pub async fn send_media(bot: &Bot, msg: &Message, media: Media, caption: &str) -> BotHandlerResult {
+pub async fn send_media_with_caption(
+    bot: &Bot,
+    msg: &Message,
+    media: Media,
+    caption: &str,
+) -> BotHandlerResult {
     match media.media_type() {
         MediaType::Image => {
             bot.send_photo(msg.chat.id, media.into())

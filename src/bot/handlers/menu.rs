@@ -3,18 +3,14 @@ use teloxide::prelude::*;
 use teloxide::types::{Me, Message, ParseMode};
 
 use crate::app::error::AppError;
-use crate::app::usecases::dto::{Profile, TeamDTO, TeamWithMembersDTO};
-use crate::app::usecases::{
-    CreateTeam, ExitTeam, GetProfile, GetTeamWithMembers, GetUserTeam, JoinTeam,
-};
+use crate::app::usecases::dto::{Profile, TaskDTO, TeamDTO, TeamWithMembersDTO, UserTaskDTO};
+use crate::app::usecases::{AnswerTask, CreateTeam, ExitTeam, GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam, JoinTeam};
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::shared::{send_enter_message, send_use_keyboard};
-use crate::bot::keyboards::{
-    make_menu_keyboard_with_team, make_menu_keyboard_without_team, make_yes_and_back_keyboard,
-};
+use crate::bot::keyboards::{make_back_keyboard, make_menu_keyboard_with_team, make_menu_keyboard_without_team, make_task_keyboard_with_back, make_yes_and_back_keyboard};
 use crate::bot::{BotHandlerResult, keyboards, texts};
 use crate::domain::error::DomainError;
-use crate::domain::models::{TeamID, TeamName, UserID};
+use crate::domain::models::{TaskID, TaskType, TeamID, TeamName, UserID};
 
 pub async fn prompt_menu(
     bot: Bot,
@@ -43,6 +39,7 @@ async fn receive_menu_option(
     get_user_team: GetUserTeam,
     get_team_with_members: GetTeamWithMembers,
     get_profile: GetProfile,
+    get_user_tasks: GetUserTasks,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
@@ -64,6 +61,14 @@ async fn receive_menu_option(
                 }
             }
             keyboards::BTN_EXIT_TEAM => prompt_exit_approval(bot, msg, dialogue).await?,
+            keyboards::BTN_REBUSES => {
+                let rebuses = get_user_tasks.tasks(user_id, TaskType::Rebus).await?;
+                prompt_rebus(bot, msg, dialogue, rebuses.as_ref()).await?
+            }
+            keyboards::BTN_RIDDLES => {
+                let riddles = get_user_tasks.tasks(user_id, TaskType::Riddle).await?;
+                prompt_riddle(bot, msg, dialogue, riddles.as_ref()).await?
+            }
             _ => {
                 send_unknown_menu_option(&bot, &msg).await?;
                 let has_team = get_user_team.user_team(user_id).await?.is_some();
@@ -272,6 +277,243 @@ async fn send_successfully_exited_team(bot: &Bot, msg: &Message) -> BotHandlerRe
     Ok(())
 }
 
+async fn prompt_rebus(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    rebuses: &[UserTaskDTO],
+) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::rebuses_menu_text(rebuses))
+        .reply_markup(make_task_keyboard_with_back(rebuses, TaskType::Rebus))
+        .parse_mode(ParseMode::Html)
+        .await?;
+    dialogue.update(BotState::Rebus).await?;
+    Ok(())
+}
+
+async fn prompt_riddle(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    riddles: &[UserTaskDTO],
+) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::riddle_menu_text(riddles))
+        .reply_markup(make_task_keyboard_with_back(riddles, TaskType::Riddle))
+        .parse_mode(ParseMode::Html)
+        .await?;
+    dialogue.update(BotState::Riddle).await?;
+    Ok(())
+}
+
+async fn receive_rebus(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    get_tasks: GetUserTasks,
+    get_user_task: GetUserTask,
+    get_media: GetMedia,
+    get_user_team: GetUserTeam,
+) -> BotHandlerResult {
+    let user_id = UserID::new(msg.chat.id.0);
+    match msg.text() {
+        None => send_enter_message(&bot, &msg).await?,
+        Some(keyboards::BTN_BACK) => {
+            let has_team = get_user_team.user_team(user_id).await?.is_some();
+            prompt_menu(bot, msg, dialogue, has_team).await?;
+        }
+        Some(text) => match text.strip_prefix("Ребус ") {
+            None => send_use_keyboard(&bot, &msg).await?,
+            Some(name) => match name.parse::<u32>() {
+                Err(_) => send_use_keyboard(&bot, &msg).await?,
+                Ok(idx) => {
+                    let tasks = get_tasks.tasks(user_id, TaskType::Rebus).await?;
+                    match tasks.iter().find(|&t| t.index == idx) {
+                        None => send_use_keyboard(&bot, &msg).await?,
+                        Some(user_task) => {
+                            let task_id = user_task.id.clone();
+                            let task = get_user_task.user_task(user_id, task_id).await?;
+                            if task.solved {
+                                send_rebus_already_solved(&bot, &msg, &tasks).await?;
+                            } else {
+                                prompt_rebus_answer(bot, msg, dialogue, get_media, task).await?;
+                            }
+                        }
+                    }
+                }
+            },
+        },
+    }
+    Ok(())
+}
+
+async fn receive_riddle(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    get_tasks: GetUserTasks,
+    get_user_task: GetUserTask,
+    get_media: GetMedia,
+    get_user_team: GetUserTeam,
+) -> BotHandlerResult {
+    let user_id = UserID::new(msg.chat.id.0);
+    match msg.text() {
+        None => send_enter_message(&bot, &msg).await?,
+        Some(keyboards::BTN_BACK) => {
+            let has_team = get_user_team.user_team(user_id).await?.is_some();
+            prompt_menu(bot, msg, dialogue, has_team).await?;
+        }
+        Some(text) => match text.strip_prefix("Загадка ") {
+            None => send_use_keyboard(&bot, &msg).await?,
+            Some(name) => match name.parse::<u32>() {
+                Err(_) => send_use_keyboard(&bot, &msg).await?,
+                Ok(idx) => {
+                    let tasks = get_tasks.tasks(user_id, TaskType::Riddle).await?;
+                    match tasks.iter().find(|&t| t.index == idx) {
+                        None => send_use_keyboard(&bot, &msg).await?,
+                        Some(user_task) => {
+                            let task_id = user_task.id.clone();
+                            let task = get_user_task.user_task(user_id, task_id).await?;
+                            if task.solved {
+                                send_riddle_already_solved(&bot, &msg, &tasks).await?;
+                            } else {
+                                prompt_riddle_answer(bot, msg, dialogue, get_media, task).await?;
+                            }
+                        }
+                    }
+                }
+            },
+        },
+    }
+    Ok(())
+}
+
+async fn send_rebus_already_solved(bot: &Bot, msg: &Message, tasks: &[UserTaskDTO]) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::REBUS_ALREADY_SOLVED)
+        .reply_markup(make_task_keyboard_with_back(tasks, TaskType::Rebus))
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
+}
+
+async fn send_riddle_already_solved(bot: &Bot, msg: &Message, tasks: &[UserTaskDTO]) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::RIDDLE_ALREADY_SOLVED)
+        .reply_markup(make_task_keyboard_with_back(tasks, TaskType::Riddle))
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
+}
+
+async fn prompt_rebus_answer(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    get_media: GetMedia,
+    task: UserTaskDTO,
+) -> BotHandlerResult {
+    let media = get_media.media(task.media_id).await?;
+    bot.send_photo(msg.chat.id, media.into())
+        .reply_markup(make_back_keyboard())
+        .parse_mode(ParseMode::Html)
+        .await?;
+    dialogue.update(BotState::RebusAnswer(task.id)).await?;
+    Ok(())
+}
+
+async fn prompt_riddle_answer(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    get_media: GetMedia,
+    task: UserTaskDTO,
+) -> BotHandlerResult {
+    let media = get_media.media(task.media_id).await?;
+    bot.send_photo(msg.chat.id, media.into())
+        .reply_markup(make_back_keyboard())
+        .parse_mode(ParseMode::Html)
+        .await?;
+    dialogue.update(BotState::RiddleAnswer(task.id)).await?;
+    Ok(())
+}
+
+async fn receive_rebus_answer(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    task_id: TaskID,
+    answer_task: AnswerTask,
+    get_task: GetTask,
+    get_user_tasks: GetUserTasks,
+) -> BotHandlerResult {
+    let user_id = UserID::new(msg.chat.id.0);
+    match msg.text() {
+        None => send_enter_message(&bot, &msg).await?,
+        Some(keyboards::BTN_BACK) => {
+            let tasks = get_user_tasks.tasks(user_id, TaskType::Rebus).await?;
+            prompt_rebus(bot, msg, dialogue, &tasks).await?;
+        }
+        Some(text) => {
+            let text = text.to_string();
+            let answer = answer_task.answer(user_id, task_id.clone(), text).await?;
+            if answer.solved {
+                let task = get_task.task(task_id).await?;
+                send_task_solved(&bot, &msg, task).await?;
+                let tasks = get_user_tasks.tasks(user_id, TaskType::Rebus).await?;
+                prompt_rebus(bot, msg, dialogue, &tasks).await?;
+            } else {
+                send_task_incorrect_answer(&bot, &msg).await?;
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn receive_riddle_answer(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    task_id: TaskID,
+    answer_task: AnswerTask,
+    get_task: GetTask,
+    get_user_tasks: GetUserTasks,
+) -> BotHandlerResult {
+    let user_id = UserID::new(msg.chat.id.0);
+    match msg.text() {
+        None => send_enter_message(&bot, &msg).await?,
+        Some(keyboards::BTN_BACK) => {
+            let tasks = get_user_tasks.tasks(user_id, TaskType::Riddle).await?;
+            prompt_riddle(bot, msg, dialogue, &tasks).await?;
+        }
+        Some(text) => {
+            let text = text.to_string();
+            let answer = answer_task.answer(user_id, task_id.clone(), text).await?;
+            if answer.solved {
+                let task = get_task.task(task_id).await?;
+                send_task_solved(&bot, &msg, task).await?;
+                let tasks = get_user_tasks.tasks(user_id, TaskType::Riddle).await?;
+                prompt_riddle(bot, msg, dialogue, &tasks).await?;
+            } else {
+                send_task_incorrect_answer(&bot, &msg).await?;
+            }
+        }
+    }
+    Ok(())
+}
+
+async fn send_task_solved(bot: &Bot, msg: &Message, task: TaskDTO) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, task.explanation.as_str())
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
+}
+
+async fn send_task_incorrect_answer(bot: &Bot, msg: &Message) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::TASK_INCORRECT_ANSWER)
+        .reply_markup(make_back_keyboard())
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
+}
+
 pub fn menu_scheme() -> UpdateHandler<AppError> {
     use dptree::case;
 
@@ -280,4 +522,8 @@ pub fn menu_scheme() -> UpdateHandler<AppError> {
         .branch(case![BotState::TeamCode].endpoint(receive_team_code))
         .branch(case![BotState::TeamName].endpoint(receive_team_name))
         .branch(case![BotState::ExitApproval].endpoint(receive_exit_approval))
+        .branch(case![BotState::Rebus].endpoint(receive_rebus))
+        .branch(case![BotState::RebusAnswer(task_id)].endpoint(receive_rebus_answer))
+        .branch(case![BotState::Riddle].endpoint(receive_riddle))
+        .branch(case![BotState::RiddleAnswer(task_id)].endpoint(receive_riddle_answer))
 }

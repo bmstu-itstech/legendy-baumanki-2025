@@ -1,19 +1,13 @@
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use postgres_types::{FromSql, ToSql};
 use tokio_postgres::{Client, GenericClient};
 use tokio_postgres::{Row, Transaction};
 
 use crate::app::error::AppError;
-use crate::app::ports::{
-    IsAdminProvider, IsRegisteredUserProvider, IsTeamExistsProvider, MediaProvider,
-    MediaRepository, TeamByMemberProvider, TeamProvider, TeamRepository, UserProvider,
-    UserRepository,
-};
+use crate::app::ports::{IsAdminProvider, IsRegisteredUserProvider, IsTeamExistsProvider, MediaProvider, MediaRepository, TaskProvider, TasksProvider, TeamByMemberProvider, TeamProvider, TeamRepository, UserProvider, UserRepository};
 use crate::domain::error::DomainError;
-use crate::domain::models::{
-    FileID, FullName, GroupName, Media, MediaID, MediaType as DomainMediaType, Team, TeamID,
-    TeamName, User, UserID, Username,
-};
+use crate::domain::models::{Answer, AnswerID, AnswerText, FileID, FullName, GroupName, Media, MediaID, MediaType as DomainMediaType, Points, SerialNumber, Task, TaskID, Team, TeamID, TeamName, User, UserID, Username, TaskType as DomainTaskType, TaskText, CorrectAnswer, LevenshteinDistance};
 use crate::{with_client, with_transaction};
 
 pub struct PostgresRepository {
@@ -101,6 +95,77 @@ impl MediaRow {
     }
 }
 
+#[derive(Debug, ToSql, FromSql)]
+#[postgres(name = "task_type", rename_all = "snake_case")]
+enum TaskType {
+    Rebus,
+    Riddle,
+}
+
+impl From<DomainTaskType> for TaskType {
+    fn from(value: DomainTaskType) -> Self {
+        match value {
+            DomainTaskType::Rebus => TaskType::Rebus,
+            DomainTaskType::Riddle => TaskType::Riddle,
+        }
+    }
+}
+
+impl Into<DomainTaskType> for TaskType {
+    fn into(self) -> DomainTaskType {
+        match self {
+            TaskType::Rebus => DomainTaskType::Rebus,
+            TaskType::Riddle => DomainTaskType::Riddle,
+        }
+    }
+}
+
+struct TaskRow {
+    id: String,
+    index: i32,
+    task_type: TaskType,
+    media_id: String,
+    explanation: String,
+    correct_answer: String,
+    points: i32,
+    max_levenshtein_distance: i32,
+}
+
+impl TaskRow {
+    pub fn fetch_from_row(row: &Row) -> Result<TaskRow, tokio_postgres::Error> {
+        Ok(TaskRow {
+            id: row.try_get("id")?,
+            index: row.try_get("index")?,
+            task_type: row.try_get("task_type")?,
+            media_id: row.try_get("media_id")?,
+            explanation: row.try_get("explanation")?,
+            correct_answer: row.try_get("correct_answer")?,
+            points: row.try_get("points")?,
+            max_levenshtein_distance: row.try_get("max_levenshtein_distance")?,
+        })
+    }
+}
+
+struct AnswerRow {
+    id: String,
+    task_id: String,
+    text: String,
+    points: i32,
+    created_at: DateTime<Utc>,
+}
+
+impl AnswerRow {
+    pub fn fetch_from_row(row: &Row) -> Result<AnswerRow, tokio_postgres::Error> {
+        Ok(AnswerRow {
+            id: row.try_get("id")?,
+            task_id: row.try_get("task_id")?,
+            text: row.try_get("text")?,
+            points: row.try_get("points")?,
+            created_at: row.try_get("created_at")?,
+        })
+    }
+}
+
 #[async_trait::async_trait]
 impl UserProvider for PostgresRepository {
     async fn user(&self, id: UserID) -> Result<User, AppError> {
@@ -131,11 +196,43 @@ impl UserProvider for PostgresRepository {
                 .transpose()
                 .map_err(AppError::DomainError)?;
 
-            Ok(User::new(
+            let rows = client
+            .query(
+                r#"
+                SELECT
+                    id,
+                    task_id,
+                    text,
+                    points,
+                    created_at
+                FROM answers
+                WHERE
+                    user_id = $1
+                "#,
+                &[&id.as_i64()],
+            )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            let mut answers = Vec::new();
+            for row in rows {
+                let row = AnswerRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
+                let answer = Answer::restore(
+                    AnswerID::try_from(row.id).map_err(AppError::DomainError)?,
+                    TaskID::try_from(row.task_id).map_err(AppError::DomainError)?,
+                    AnswerText::new(row.text),
+                    Points::new(row.points).map_err(AppError::DomainError)?,
+                    row.created_at,
+                );
+                answers.push(answer);
+            }
+
+            Ok(User::restore(
                 UserID::new(user_row.id),
                 username,
                 FullName::new(user_row.full_name).map_err(AppError::DomainError)?,
                 GroupName::new(user_row.group_name).map_err(AppError::DomainError)?,
+                answers,
             ))
         })
     }
@@ -323,8 +420,8 @@ impl IsTeamExistsProvider for PostgresRepository {
 #[async_trait::async_trait]
 impl UserRepository for PostgresRepository {
     async fn save_user(&self, user: User) -> Result<(), AppError> {
-        with_client!(self.pool, async |client: &Client| {
-            client
+        with_transaction!(self.pool, async |tx: &Transaction| {
+            tx
                 .execute(
                     r#"
                 INSERT INTO 
@@ -350,7 +447,47 @@ impl UserRepository for PostgresRepository {
                 )
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
-            Ok(())
+
+            tx.execute(
+                r#"
+                DELETE FROM answers
+                WHERE
+                    user_id = $1
+                "#,
+                &[&user.id().as_i64()]
+            )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            for answer in user.answers().values() {
+                tx.execute(
+                    r#"
+                    INSERT INTO
+                        answers (
+                            id,
+                            task_id,
+                            user_id,
+                            text,
+                            points,
+                            created_at
+                        )
+                    VALUES
+                        ($1, $2, $3, $4, $5, $6)
+                    "#,
+                    &[
+                        &answer.id().as_str(),
+                        &answer.task_id().as_str(),
+                        &user.id().as_i64(),
+                        &answer.text().as_str(),
+                        &answer.points().as_i32(),
+                        &answer.created_at(),
+                    ]
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+            }
+
+            Ok::<(), AppError>(())
         })
     }
 }
@@ -515,6 +652,100 @@ impl IsAdminProvider for PostgresRepository {
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
             Ok(row.is_some())
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl TaskProvider for PostgresRepository {
+    async fn task(&self, id: TaskID) -> Result<Task, AppError> {
+        with_client!(self.pool, async |client: &Client| {
+            let row_opt = client
+            .query_opt(
+                r#"
+                SELECT
+                    id,
+                    index,
+                    task_type,
+                    media_id,
+                    explanation,
+                    correct_answer,
+                    points,
+                    max_levenshtein_distance
+                FROM tasks
+                WHERE
+                    id = $1
+                "#,
+                &[&id.as_str()],
+            )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            if let Some(row) = row_opt {
+                let task_row = TaskRow::fetch_from_row(&row)
+                    .map_err(|err| AppError::Internal(err.into()))?;
+                let task = Task::restore(
+                    TaskID::try_from(task_row.id).map_err(AppError::DomainError)?,
+                    task_row.index as SerialNumber,
+                    task_row.task_type.into(),
+                    MediaID::new(task_row.media_id).map_err(AppError::DomainError)?,
+                    TaskText::new(task_row.explanation).map_err(AppError::DomainError)?,
+                    CorrectAnswer::new(task_row.correct_answer).map_err(AppError::DomainError)?,
+                    Points::new(task_row.points).map_err(AppError::DomainError)?,
+                    task_row.max_levenshtein_distance as LevenshteinDistance,
+                );
+                Ok(task)
+            } else {
+                Err(AppError::TaskNotFound(id))
+            }
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl TasksProvider for PostgresRepository {
+    async fn tasks(&self, task_type: DomainTaskType) -> Result<Vec<Task>, AppError> {
+        with_client!(self.pool, async |client: &Client| {
+            let task_type: TaskType = task_type.into();
+            let rows = client
+            .query(
+                r#"
+                SELECT
+                    id,
+                    index,
+                    task_type,
+                    media_id,
+                    explanation,
+                    correct_answer,
+                    points,
+                    max_levenshtein_distance
+                FROM tasks
+                WHERE
+                    task_type = $1
+                ORDER BY index ASC
+                "#,
+                &[&task_type],
+            )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            let mut tasks = Vec::new();
+            for row in rows {
+                let task_row = TaskRow::fetch_from_row(&row)
+                    .map_err(|err| AppError::Internal(err.into()))?;
+                let task = Task::restore(
+                    TaskID::try_from(task_row.id).map_err(AppError::DomainError)?,
+                    task_row.index as SerialNumber,
+                    task_row.task_type.into(),
+                    MediaID::new(task_row.media_id).map_err(AppError::DomainError)?,
+                    TaskText::new(task_row.explanation).map_err(AppError::DomainError)?,
+                    CorrectAnswer::new(task_row.correct_answer).map_err(AppError::DomainError)?,
+                    Points::new(task_row.points).map_err(AppError::DomainError)?,
+                    task_row.max_levenshtein_distance as LevenshteinDistance,
+                );
+                tasks.push(task);
+            }
+            Ok(tasks)
         })
     }
 }

@@ -12,7 +12,7 @@ use crate::bot::handlers::menu::{
     prompt_menu, send_joining_team_successful, send_team_is_full, send_team_not_exists,
 };
 use crate::bot::handlers::registration::prompt_pd_agreement;
-use crate::bot::handlers::shared::{send_media, send_permission_denied};
+use crate::bot::handlers::shared::{send_media_with_caption, send_permission_denied};
 use crate::bot::resources::{RULES_IMAGE_1, RULES_IMAGE_2};
 use crate::bot::{BotHandlerResult, texts};
 use crate::domain::error::DomainError;
@@ -180,7 +180,7 @@ async fn receive_media(
         let media = Media::image(media_id.clone(), file_id.clone());
         upload_media.upload_media(media).await?;
         let media = get_media.media(media_id.clone()).await?;
-        send_media(
+        send_media_with_caption(
             &bot,
             &msg,
             media,
@@ -193,7 +193,7 @@ async fn receive_media(
         let media = Media::video_note(media_id.clone(), file_id.clone());
         upload_media.upload_media(media).await?;
         let media = get_media.media(media_id.clone()).await?;
-        send_media(
+        send_media_with_caption(
             &bot,
             &msg,
             media,

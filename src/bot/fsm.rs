@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use teloxide::dispatching::dialogue::InMemStorage;
 use teloxide::prelude::Dialogue;
 
-use crate::domain::models::{FullName, MediaID, TeamID};
+use crate::domain::models::{FullName, MediaID, TaskID, TeamID};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub enum BotState {
@@ -19,6 +19,10 @@ pub enum BotState {
     TeamCode,
     TeamName,
     ExitApproval,
+    Rebus,
+    RebusAnswer(TaskID),
+    Riddle,
+    RiddleAnswer(TaskID),
 
     // Admin
     Media(MediaID),

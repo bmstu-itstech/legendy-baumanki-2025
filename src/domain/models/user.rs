@@ -1,6 +1,10 @@
-use crate::domain::error::DomainError;
+use std::collections::HashMap;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+use crate::domain::error::DomainError;
+use crate::domain::models::{Answer, TaskID};
+use crate::domain::models::points::Points;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct UserID(i64);
@@ -93,6 +97,7 @@ pub struct User {
     username: Option<Username>,
     full_name: FullName,
     group_name: GroupName,
+    answers: HashMap<TaskID, Answer>,
 }
 
 impl User {
@@ -107,15 +112,45 @@ impl User {
             username,
             full_name,
             group_name,
+            answers: HashMap::new(),
+        }
+    }
+    
+    pub fn restore(
+        id: UserID,
+        username: Option<Username>,
+        full_name: FullName,
+        group_name: GroupName,
+        answers: Vec<Answer>,
+    ) -> Self {
+        let answers = HashMap::from_iter(answers.into_iter().map(|a| (a.task_id().clone(), a)));
+        Self {
+            id, username, full_name, group_name, answers,
         }
     }
 
+    pub fn total_points(&self) -> Points {
+        self.answers.values().fold(Points::zero(), |sum, answer| sum + answer.points() )
+    }
+
+    pub fn add_answer(&mut self, answer: Answer) {
+        self.answers.insert(answer.task_id().clone(), answer);
+    }
+
+    pub fn change_full_name(&mut self, new: FullName) {
+        self.full_name = new;
+    }
+
+    pub fn change_group_name(&mut self, new: GroupName) {
+        self.group_name = new;
+    }
+    
     pub fn id(&self) -> UserID {
         self.id
     }
 
-    pub fn username(&self) -> &Option<Username> {
-        &self.username
+    pub fn username(&self) -> Option<&Username> {
+        self.username.as_ref()
     }
 
     pub fn full_name(&self) -> &FullName {
@@ -125,12 +160,12 @@ impl User {
     pub fn group_name(&self) -> &GroupName {
         &self.group_name
     }
-
-    pub fn change_full_name(&mut self, new: FullName) {
-        self.full_name = new;
+    
+    pub fn answers(&self) -> &HashMap<TaskID, Answer> {
+        &self.answers
     }
-
-    pub fn change_group_name(&mut self, new: GroupName) {
-        self.group_name = new;
+    
+    pub fn answer(&self, task_id: &TaskID) -> Option<&Answer> {
+        self.answers.get(task_id)
     }
 }

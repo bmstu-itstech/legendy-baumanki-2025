@@ -1,5 +1,5 @@
-use crate::app::usecases::dto::{Profile, TeamDTO, TeamWithMembersDTO};
-use crate::domain::models::{FileID, TeamName};
+use crate::app::usecases::dto::{Profile, TaskDTO, TeamDTO, TeamWithMembersDTO, UserTaskDTO};
+use crate::domain::models::{FileID, Points, TeamName};
 
 type StaticStr = &'static str;
 
@@ -120,6 +120,23 @@ pub const PROMPT_MEDIA: StaticStr = "📤 <b>Загрузка файла</b>\n\
 pub const UNKNOWN_MEDIA_FORMAT: StaticStr = "❌ <b>Формат не поддерживается</b>
     Отправьте изображение или видеосообщение.";
 
+pub const TASK_INCORRECT_ANSWER: StaticStr = "❕ <b>Упс…</b>\n\
+    Ответ неверный, попробуй ещё раз!\n\
+    \n\
+    ❔ <i>Хорошенько подумай, иногда истина находится где-то совсем рядом!</i>";
+
+pub const REBUS_ALREADY_SOLVED: StaticStr = "✅ <b>Ответ уже засчитан</b>\n\
+    \n\
+    Ты уже дал(а) правильный ответ на этот ребус! Молодец!\n\
+    \n\
+    <i>Можешь перейти к следующему заданию.</i>";
+
+pub const RIDDLE_ALREADY_SOLVED: StaticStr = "✅ <b>Ответ уже засчитан</b>\n\
+    \n\
+    Ты уже дал(а) правильный ответ на эту загадку! Молодец!\n\
+    \n\
+    <i>Можешь перейти к следующему заданию.</i>";
+
 pub fn successful_joined_team(team_name: TeamName) -> String {
     format!(
         "🎉 <b>Ты в команде!</b>\n\
@@ -211,5 +228,45 @@ pub fn media_uploaded(file_id: &FileID) -> String {
     format!(
         "✅ <b>FileID получен!</b>\n<code>{}</code>",
         file_id.as_str()
+    )
+}
+
+pub fn rebuses_menu_text(tasks: &[UserTaskDTO]) -> String {
+    let completed = tasks.iter().fold(0, |acc, task| acc + if task.solved { 1 } else { 0 });
+    let total = tasks.len();
+    let list = tasks
+        .into_iter()
+        .map(|t| format!("• Ребус #{} {}\n", t.index, if t.solved { "✅" } else { "⏳" } )).fold(String::new(), |acc, s| acc + s.as_str());
+    format!(
+        "🔍 <b>Меню ребусов</b>\n\
+        <i>Решено: {completed}/{total}</i>\n\
+        \n\
+        Вот список всех ребусов. Выбери номер, чтобы перейти к ребусу.\n\
+        \n\
+        Статус:\n\
+        ✅ — решён\n\
+        ⏳ — не решён\n\
+        \n\
+        {list}"
+    )
+}
+
+pub fn riddle_menu_text(tasks: &[UserTaskDTO]) -> String {
+    let completed = tasks.iter().fold(0, |acc, task| acc + if task.solved { 1 } else { 0 });
+    let total = tasks.len();
+    let list = tasks
+        .into_iter()
+        .map(|t| format!("• Загадка #{} {}\n", t.index, if t.solved { "✅" } else { "⏳" } )).fold(String::new(), |acc, s| acc + s.as_str());
+    format!(
+        "🔍 <b>Меню загадок</b>\n\
+        <i>Решено: {completed}/{total}</i>\n\
+        \n\
+        Вот список всех загадок. Выбери номер, чтобы перейти к загадке.\n\
+        \n\
+        Статус:\n\
+        ✅ — решена\n\
+        ⏳ — не решена\n\
+        \n\
+        {list}"
     )
 }

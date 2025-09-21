@@ -15,6 +15,7 @@ impl BotDispatcher {
     pub async fn create(bot: Bot, app: App) -> Dispatcher<Bot, AppError, DefaultKey> {
         Dispatcher::builder(bot, Self::scheme())
             .dependencies(dptree::deps![
+                app.answer_task,
                 app.change_full_name,
                 app.change_group_name,
                 app.check_admin,
@@ -24,7 +25,10 @@ impl BotDispatcher {
                 app.exit_team,
                 app.get_media,
                 app.get_profile,
+                app.get_task,
                 app.get_team_with_members,
+                app.get_user_tasks,
+                app.get_user_task,
                 app.get_user_team,
                 app.join_team,
                 app.register_user,

@@ -1,7 +1,5 @@
-use crate::domain::models::{
-    FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType, Team, TeamID, TeamName,
-    User, Username,
-};
+use chrono::{DateTime, Utc};
+use crate::domain::models::{FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType, Team, TeamID, TeamName, User, Username, TaskID, SerialNumber, TaskText, TaskType, Task, AnswerID, Points, Answer, AnswerText};
 
 pub struct UserDTO {
     pub username: Option<Username>,
@@ -12,7 +10,7 @@ pub struct UserDTO {
 impl From<User> for UserDTO {
     fn from(u: User) -> Self {
         Self {
-            username: u.username().clone(),
+            username: u.username().cloned(),
             full_name: u.full_name().clone(),
             group_name: u.group_name().clone(),
         }
@@ -66,6 +64,56 @@ impl From<Media> for MediaDTO {
             id: m.id().clone(),
             file_id: m.file_id().clone(),
             media_type: m.media_type().clone(),
+        }
+    }
+}
+
+pub struct TaskDTO {
+    pub id: TaskID,
+    pub index: SerialNumber,
+    pub task_type: TaskType,
+    pub media_id: MediaID,
+    pub explanation: TaskText,
+}
+
+impl From<Task> for TaskDTO {
+    fn from(t: Task) -> Self {
+        Self {
+            id: t.id().clone(),
+            index: t.index(),
+            task_type: t.task_type(),
+            media_id: t.media_id().clone(),
+            explanation: t.explanation().clone(),
+        }
+    }
+}
+
+pub struct UserTaskDTO {
+    pub id: TaskID,
+    pub index: SerialNumber,
+    pub media_id: MediaID,
+    pub explanation: TaskText,
+    pub solved: bool,
+}
+
+pub struct AnswerDTO {
+    pub id: AnswerID,
+    pub task_id: TaskID,
+    pub text: AnswerText,
+    pub points: Points,
+    pub solved: bool,
+    pub created_at: DateTime<Utc>,
+}
+
+impl From<Answer> for AnswerDTO {
+    fn from(a: Answer) -> Self {
+        Self {
+            id: a.id().clone(),
+            task_id: a.task_id().clone(),
+            text: a.text().clone(),
+            points: a.points(),
+            solved: a.solved(),
+            created_at: a.created_at().clone(),
         }
     }
 }

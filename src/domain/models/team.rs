@@ -11,7 +11,7 @@ pub struct TeamID(String);
 
 impl TeamID {
     pub fn new() -> Self {
-        Self(new_short_uuid(6))
+        Self(new_short_uuid(TEAM_ID_LENGTH))
     }
 
     pub fn as_str(&self) -> &str {
