@@ -61,12 +61,15 @@ pub fn make_menu_keyboard_without_team() -> KeyboardMarkup {
 
 pub fn make_menu_keyboard_with_team() -> KeyboardMarkup {
     let buttons = vec![
+        vec![KeyboardButton::new(BTN_PROFILE)],
         vec![
             KeyboardButton::new(BTN_MY_TEAM),
             KeyboardButton::new(BTN_EXIT_TEAM),
         ],
-        vec![KeyboardButton::new(BTN_PROFILE)],
-        vec![KeyboardButton::new(BTN_REBUSES)],
+        vec![
+            KeyboardButton::new(BTN_REBUSES),
+            KeyboardButton::new(BTN_RIDDLES),
+        ],
     ];
     KeyboardMarkup::new(buttons)
         .resize_keyboard()
