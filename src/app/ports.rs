@@ -22,11 +22,6 @@ pub trait TeamByMemberProvider: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait IsTeamExistsProvider: Send + Sync {
-    async fn is_team_exists(&self, team_id: &TeamID) -> Result<bool, AppError>;
-}
-
-#[async_trait::async_trait]
 pub trait UserRepository: UserProvider + Send + Sync {
     async fn save_user(&self, user: User) -> Result<(), AppError>;
 }

@@ -4,9 +4,9 @@ use teloxide::prelude::*;
 
 use crate::app::usecases::app::App;
 use crate::app::usecases::{
-    AnswerTask, ChangeFullName, ChangeGroupName, CheckAdmin, CheckRegistered, CheckTeamExists,
-    CreateTeam, ExitTeam, GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUserTask,
-    GetUserTasks, GetUserTeam, JoinTeam, RegisterUser, RemoveMember, UploadMedia,
+    AnswerTask, CheckAdmin, CheckRegistered, CreateTeam, ExitTeam,
+    GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam,
+    JoinTeam, RegisterUser, UploadMedia,
 };
 use crate::bot::dispatcher::BotDispatcher;
 use crate::infra::postgres::PostgresRepository;
@@ -31,11 +31,8 @@ async fn main() {
 
     let app = App {
         answer_task: AnswerTask::new(repos.clone(), repos.clone()),
-        change_full_name: ChangeFullName::new(repos.clone()),
-        change_group_name: ChangeGroupName::new(repos.clone()),
         check_admin: CheckAdmin::new(repos.clone()),
         check_registered: CheckRegistered::new(repos.clone()),
-        check_team_exists: CheckTeamExists::new(repos.clone()),
         create_team: CreateTeam::new(repos.clone()),
         exit_team: ExitTeam::new(repos.clone(), repos.clone()),
         get_media: GetMedia::new(repos.clone()),
@@ -47,7 +44,6 @@ async fn main() {
         get_user_team: GetUserTeam::new(repos.clone()),
         join_team: JoinTeam::new(repos.clone()),
         register_user: RegisterUser::new(repos.clone()),
-        remove_member: RemoveMember::new(repos.clone()),
         upload_media: UploadMedia::new(repos.clone()),
     };
 

@@ -6,7 +6,7 @@ use tokio_postgres::{Row, Transaction};
 
 use crate::app::error::AppError;
 use crate::app::ports::{
-    IsAdminProvider, IsRegisteredUserProvider, IsTeamExistsProvider, MediaProvider,
+    IsAdminProvider, IsRegisteredUserProvider, MediaProvider,
     MediaRepository, TaskProvider, TasksProvider, TeamByMemberProvider, TeamProvider,
     TeamRepository, UserProvider, UserRepository,
 };
@@ -400,28 +400,6 @@ impl TeamByMemberProvider for PostgresRepository {
             .map_err(AppError::DomainError)?;
 
             Ok(Some(team))
-        })
-    }
-}
-
-#[async_trait::async_trait]
-impl IsTeamExistsProvider for PostgresRepository {
-    async fn is_team_exists(&self, team_id: &TeamID) -> Result<bool, AppError> {
-        with_client!(self.pool, async |client: &Client| {
-            let row = client
-                .query_opt(
-                    r#"
-                SELECT 1
-                FROM teams
-                WHERE
-                    id = $1
-                LIMIT 1
-                "#,
-                    &[&team_id.as_str()],
-                )
-                .await
-                .map_err(|err| AppError::Internal(err.into()))?;
-            Ok(row.is_some())
         })
     }
 }
