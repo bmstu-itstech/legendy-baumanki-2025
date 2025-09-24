@@ -1,4 +1,4 @@
-use crate::app::usecases::dto::{Profile, TeamDTO, TeamWithMembersDTO, UserTaskDTO};
+use crate::app::usecases::dto::{CharacterDTO, Profile, TeamDTO, TeamWithMembersDTO, UserTaskDTO};
 use crate::domain::models::{FileID, TeamName};
 
 type StaticStr = &'static str;
@@ -145,6 +145,12 @@ pub fn successful_joined_team(team_name: TeamName) -> String {
     )
 }
 
+pub const PROMPT_CHARACTER_NAME: StaticStr = "✨ <b>Легенды Бауманки</b>\n\
+    \n\
+    Познакомься с великими учёными, инженерами и космонавтами, которые начинали свой путь здесь, в стенах МГТУ им. Н.Э. Баумана.\n\
+    \n\
+    <b><i>Кого из них ты хочешь узнать лучше?</i></b>";
+
 pub fn profile(profile: Profile) -> String {
     match profile.team_name {
         Some(team_name) => {
@@ -286,5 +292,26 @@ pub fn riddle_menu_text(tasks: &[UserTaskDTO]) -> String {
         ⏳ — не решена\n\
         \n\
         {list}"
+    )
+}
+
+pub fn character(character: CharacterDTO) -> String {
+    let facts = character.facts
+        .into_iter()
+        .map(|f| {
+            format!("🔹 {}\n\n", f.as_str())
+        })
+        .fold(String::new(), |acc, s| acc + s.as_str());
+    format!(
+        "<b>{}</b>\n\
+        \n\
+        <blockquote>«{}»</blockquote>\n\
+        \n\
+        {facts}\
+        <b><i>{}</i></b>
+        ",
+        character.name.as_str(),
+        character.quote.as_str(),
+        character.legacy.as_str(),
     )
 }

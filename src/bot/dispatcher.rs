@@ -20,6 +20,8 @@ impl BotDispatcher {
                 app.check_registered,
                 app.create_team,
                 app.exit_team,
+                app.get_character,
+                app.get_character_names,
                 app.get_media,
                 app.get_profile,
                 app.get_task,

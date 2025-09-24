@@ -1,7 +1,7 @@
 use teloxide::types::{KeyboardButton, KeyboardMarkup};
 
 use crate::app::usecases::dto::UserTaskDTO;
-use crate::domain::models::TaskType;
+use crate::domain::models::{CharacterName, TaskType};
 
 type StaticStr = &'static str;
 
@@ -41,6 +41,7 @@ pub const BTN_EXIT_TEAM: StaticStr = "Покинуть команду";
 pub const BTN_PROFILE: StaticStr = "Профиль";
 pub const BTN_REBUSES: StaticStr = "Ребусы";
 pub const BTN_RIDDLES: StaticStr = "Загадки";
+pub const BTN_CHARACTERS: StaticStr = "Личности";
 
 pub fn make_menu_keyboard_without_team() -> KeyboardMarkup {
     let buttons = vec![
@@ -53,6 +54,9 @@ pub fn make_menu_keyboard_without_team() -> KeyboardMarkup {
             KeyboardButton::new(BTN_REBUSES),
             KeyboardButton::new(BTN_RIDDLES),
         ],
+        vec![
+            KeyboardButton::new(BTN_CHARACTERS),
+        ]
     ];
     KeyboardMarkup::new(buttons)
         .resize_keyboard()
@@ -70,6 +74,9 @@ pub fn make_menu_keyboard_with_team() -> KeyboardMarkup {
             KeyboardButton::new(BTN_REBUSES),
             KeyboardButton::new(BTN_RIDDLES),
         ],
+        vec![
+            KeyboardButton::new(BTN_CHARACTERS),
+        ]
     ];
     KeyboardMarkup::new(buttons)
         .resize_keyboard()
@@ -82,6 +89,21 @@ pub fn make_task_keyboard_with_back(tasks: &[UserTaskDTO], task_type: TaskType) 
         let row: Vec<_> = chunk
             .iter()
             .map(|t| KeyboardButton::new(format!("{} {}", task_type.as_str(), t.index)))
+            .collect();
+        keyboard.push(row);
+    }
+    keyboard.push(vec![KeyboardButton::new(BTN_BACK)]);
+    KeyboardMarkup::new(keyboard)
+        .resize_keyboard()
+        .one_time_keyboard()
+}
+
+pub fn make_characters_keyboard_with_back(names: &[CharacterName]) -> KeyboardMarkup {
+    let mut keyboard = Vec::new();
+    for chunk in names.chunks(3) {
+        let row: Vec<_> = chunk
+            .iter()
+            .map(|name| KeyboardButton::new(name.to_string()))
             .collect();
         keyboard.push(row);
     }

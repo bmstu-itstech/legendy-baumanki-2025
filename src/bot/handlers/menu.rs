@@ -1,22 +1,16 @@
 use teloxide::dispatching::UpdateHandler;
 use teloxide::prelude::*;
-use teloxide::types::{Me, Message, ParseMode};
+use teloxide::types::{InputFile, Me, Message, ParseMode};
 
 use crate::app::error::AppError;
-use crate::app::usecases::dto::{Profile, TaskDTO, TeamDTO, TeamWithMembersDTO, UserTaskDTO};
-use crate::app::usecases::{
-    AnswerTask, CreateTeam, ExitTeam, GetMedia, GetProfile, GetTask, GetTeamWithMembers,
-    GetUserTask, GetUserTasks, GetUserTeam, JoinTeam,
-};
+use crate::app::usecases::dto::{CharacterDTO, Profile, TaskDTO, TeamDTO, TeamWithMembersDTO, UserTaskDTO};
+use crate::app::usecases::{AnswerTask, CreateTeam, ExitTeam, GetCharacter, GetCharacterNames, GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam, JoinTeam};
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::shared::{send_enter_message, send_use_keyboard};
-use crate::bot::keyboards::{
-    make_back_keyboard, make_menu_keyboard_with_team, make_menu_keyboard_without_team,
-    make_task_keyboard_with_back, make_yes_and_back_keyboard,
-};
+use crate::bot::keyboards::{make_back_keyboard, make_characters_keyboard_with_back, make_menu_keyboard_with_team, make_menu_keyboard_without_team, make_task_keyboard_with_back, make_yes_and_back_keyboard};
 use crate::bot::{BotHandlerResult, keyboards, texts};
 use crate::domain::error::DomainError;
-use crate::domain::models::{TaskID, TaskType, TeamID, TeamName, UserID};
+use crate::domain::models::{CharacterName, TaskID, TaskType, TeamID, TeamName, UserID};
 
 pub async fn prompt_menu(
     bot: Bot,
@@ -46,6 +40,7 @@ async fn receive_menu_option(
     get_team_with_members: GetTeamWithMembers,
     get_profile: GetProfile,
     get_user_tasks: GetUserTasks,
+    get_character_names: GetCharacterNames,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
@@ -74,6 +69,10 @@ async fn receive_menu_option(
             keyboards::BTN_RIDDLES => {
                 let riddles = get_user_tasks.tasks(user_id, TaskType::Riddle).await?;
                 prompt_riddle(bot, msg, dialogue, riddles.as_ref()).await?
+            }
+            keyboards::BTN_CHARACTERS => {
+                let names = get_character_names.characters().await?;
+                prompt_character_name(bot, msg, dialogue, &names).await?
             }
             _ => {
                 send_unknown_menu_option(&bot, &msg).await?;
@@ -528,6 +527,52 @@ async fn send_task_incorrect_answer(bot: &Bot, msg: &Message) -> BotHandlerResul
     Ok(())
 }
 
+async fn prompt_character_name(bot: Bot, msg: Message, dialogue: BotDialogue, names: &[CharacterName]) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::PROMPT_CHARACTER_NAME)
+        .reply_markup(make_characters_keyboard_with_back(names))
+        .parse_mode(ParseMode::Html)
+        .await?;
+    dialogue.update(BotState::CharacterName).await?;
+    Ok(())
+}
+
+async fn receive_character_name(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    get_user_team: GetUserTeam,
+    get_character: GetCharacter,
+) -> BotHandlerResult {
+    let user_id = UserID::new(msg.chat.id.0);
+    match msg.text() {
+        None => send_enter_message(&bot, &msg).await,
+        Some(keyboards::BTN_BACK) => {
+            let has_team = get_user_team.user_team(user_id).await?.is_some();
+            prompt_menu(bot, msg, dialogue, has_team).await
+        }
+        Some(text) => {
+            let name = CharacterName::new(text.to_string())?;
+            match get_character.character(&name).await {
+                Err(AppError::CharacterNotFound(_)) => send_use_keyboard(&bot, &msg).await,
+                Err(err) => Err(err),
+                Ok(character) => {
+                    send_character(&bot, &msg, character).await?;
+                    let has_team = get_user_team.user_team(user_id).await?.is_some();
+                    prompt_menu(bot, msg, dialogue, has_team).await
+                }
+            }
+        }
+    }
+}
+
+async fn send_character(bot: &Bot, msg: &Message, character: CharacterDTO) -> BotHandlerResult {
+    bot.send_photo(msg.chat.id, InputFile::file_id(character.image_id.clone().into()))
+        .caption(texts::character(character))
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
+}
+
 pub fn menu_scheme() -> UpdateHandler<AppError> {
     use dptree::case;
 
@@ -540,4 +585,5 @@ pub fn menu_scheme() -> UpdateHandler<AppError> {
         .branch(case![BotState::RebusAnswer(task_id)].endpoint(receive_rebus_answer))
         .branch(case![BotState::Riddle].endpoint(receive_riddle))
         .branch(case![BotState::RiddleAnswer(task_id)].endpoint(receive_riddle_answer))
+        .branch(case![BotState::CharacterName].endpoint(receive_character_name))
 }

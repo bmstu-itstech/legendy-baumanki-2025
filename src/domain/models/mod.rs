@@ -1,4 +1,5 @@
 mod answer;
+mod character;
 mod media;
 mod not_empty_string;
 mod points;
@@ -8,6 +9,7 @@ mod team;
 mod user;
 
 pub use answer::*;
+pub use character::*;
 pub use media::*;
 pub use points::*;
 pub use task::*;

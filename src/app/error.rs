@@ -1,5 +1,5 @@
 use crate::domain::error::DomainError;
-use crate::domain::models::{MediaID, TaskID};
+use crate::domain::models::{CharacterName, MediaID, TaskID};
 
 pub type StdError = Box<dyn std::error::Error + Send + Sync>;
 
@@ -19,6 +19,9 @@ pub enum AppError {
 
     #[error("task {0:?} not found")]
     TaskNotFound(TaskID),
+    
+    #[error("character {0:?} not found")]
+    CharacterNotFound(CharacterName),
 
     #[error(transparent)]
     Internal(#[from] StdError),

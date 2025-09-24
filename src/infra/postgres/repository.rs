@@ -6,12 +6,13 @@ use tokio_postgres::{Row, Transaction};
 
 use crate::app::error::AppError;
 use crate::app::ports::{
-    IsAdminProvider, IsRegisteredUserProvider, MediaProvider, MediaRepository, TaskProvider,
-    TasksProvider, TeamByMemberProvider, TeamProvider, TeamRepository, UserProvider,
+    CharactersProvider, IsAdminProvider, IsRegisteredUserProvider, MediaProvider, MediaRepository,
+    TaskProvider, TasksProvider, TeamByMemberProvider, TeamProvider, TeamRepository, UserProvider,
     UserRepository,
 };
 use crate::domain::models::{
-    Answer, AnswerID, AnswerText, CorrectAnswer, FileID, FullName, GroupName, LevenshteinDistance,
+    Answer, AnswerID, AnswerText, Character, CharacterFact, CharacterID, CharacterLegacy,
+    CharacterName, CharacterQuote, CorrectAnswer, FileID, FullName, GroupName, LevenshteinDistance,
     Media, MediaID, MediaType as DomainMediaType, Points, SerialNumber, Task, TaskID, TaskText,
     TaskType as DomainTaskType, Team, TeamID, TeamName, User, UserID, Username,
 };
@@ -169,6 +170,40 @@ impl AnswerRow {
             text: row.try_get("text")?,
             points: row.try_get("points")?,
             created_at: row.try_get("created_at")?,
+        })
+    }
+}
+
+struct CharacterRow {
+    id: String,
+    name: String,
+    quote: String,
+    legacy: String,
+    media_id: String,
+}
+
+impl CharacterRow {
+    pub fn fetch_from_row(row: &Row) -> Result<CharacterRow, tokio_postgres::Error> {
+        Ok(CharacterRow {
+            id: row.try_get("id")?,
+            name: row.try_get("name")?,
+            quote: row.try_get("quote")?,
+            legacy: row.try_get("legacy")?,
+            media_id: row.try_get("media_id")?,
+        })
+    }
+}
+
+struct CharacterFactRow {
+    character_id: String,
+    fact: String,
+}
+
+impl CharacterFactRow {
+    pub fn fetch_from_row(row: &Row) -> Result<CharacterFactRow, tokio_postgres::Error> {
+        Ok(CharacterFactRow {
+            character_id: row.try_get("character_id")?,
+            fact: row.try_get("fact")?,
         })
     }
 }
@@ -553,7 +588,7 @@ impl TeamRepository for PostgresRepository {
 
 #[async_trait::async_trait]
 impl MediaProvider for PostgresRepository {
-    async fn media(&self, id: MediaID) -> Result<Media, AppError> {
+    async fn media(&self, id: &MediaID) -> Result<Media, AppError> {
         with_client!(self.pool, async |client: &Client| {
             let row_opt = client
                 .query_opt(
@@ -580,7 +615,7 @@ impl MediaProvider for PostgresRepository {
                 );
                 Ok(media)
             } else {
-                Err(AppError::MediaNotFound(id))
+                Err(AppError::MediaNotFound(id.clone()))
             }
         })
     }
@@ -727,6 +762,132 @@ impl TasksProvider for PostgresRepository {
                 tasks.push(task);
             }
             Ok(tasks)
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl CharactersProvider for PostgresRepository {
+    async fn characters(&self) -> Result<Vec<Character>, AppError> {
+        with_transaction!(self.pool, async |tx: &Transaction| {
+            let rows = tx
+                .query(
+                    r#"
+                SELECT
+                    id,
+                    name,
+                    quote,
+                    legacy,
+                    media_id
+                FROM characters
+                "#,
+                    &[],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            let mut characters = Vec::new();
+            for row in rows {
+                let char_row = CharacterRow::fetch_from_row(&row)
+                    .map_err(|err| AppError::Internal(err.into()))?;
+                let char_id = CharacterID::try_from(char_row.id.clone())?;
+
+                let fact_rows = tx
+                    .query(
+                        r#"
+                    SELECT
+                        character_id,
+                        fact
+                    FROM character_facts
+                    WHERE 
+                        character_id = $1
+                    "#,
+                        &[&char_id.as_str()],
+                    )
+                    .await
+                    .map_err(|err| AppError::Internal(err.into()))?;
+
+                let mut facts = Vec::new();
+                for fact_row in fact_rows {
+                    let fact_row = CharacterFactRow::fetch_from_row(&fact_row)
+                        .map_err(|err| AppError::Internal(err.into()))?;
+                    let fact = CharacterFact::new(fact_row.fact)?;
+                    facts.push(fact);
+                }
+
+                let char = Character::restore(
+                    char_id,
+                    CharacterName::new(char_row.name)?,
+                    CharacterQuote::new(char_row.quote)?,
+                    facts,
+                    CharacterLegacy::new(char_row.legacy)?,
+                    MediaID::new(char_row.media_id)?,
+                );
+                characters.push(char);
+            }
+            Ok::<_, AppError>(characters)
+        })
+    }
+
+    async fn character_by_name(&self, name: &CharacterName) -> Result<Option<Character>, AppError> {
+        with_transaction!(self.pool, async |tx: &Transaction| {
+            let row_opt = tx
+                .query_opt(
+                    r#"
+                SELECT
+                    id,
+                    name,
+                    quote,
+                    legacy,
+                    media_id
+                FROM characters
+                WHERE 
+                    name = $1
+                "#,
+                    &[&name.as_str()],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            if let Some(row) = row_opt {
+                let char_row = CharacterRow::fetch_from_row(&row)
+                    .map_err(|err| AppError::Internal(err.into()))?;
+
+                let fact_rows = tx
+                    .query(
+                        r#"
+                    SELECT
+                        character_id,
+                        fact
+                    FROM character_facts
+                    WHERE 
+                        character_id = $1
+                    "#,
+                        &[&char_row.id],
+                    )
+                    .await
+                    .map_err(|err| AppError::Internal(err.into()))?;
+
+                let mut facts = Vec::new();
+                for fact_row in fact_rows {
+                    let fact_row = CharacterFactRow::fetch_from_row(&fact_row)
+                        .map_err(|err| AppError::Internal(err.into()))?;
+                    let fact = CharacterFact::new(fact_row.fact)?;
+                    facts.push(fact);
+                }
+
+                let char = Character::restore(
+                    CharacterID::try_from(char_row.id)?,
+                    CharacterName::new(char_row.name)?,
+                    CharacterQuote::new(char_row.quote)?,
+                    facts,
+                    CharacterLegacy::new(char_row.legacy)?,
+                    MediaID::new(char_row.media_id)?,
+                );
+                Ok::<_, AppError>(Some(char))
+            } else {
+                Ok(None)
+            }
         })
     }
 }

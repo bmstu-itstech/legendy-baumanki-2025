@@ -1,5 +1,5 @@
 use crate::app::error::AppError;
-use crate::domain::models::{Media, MediaID, Task, TaskID, TaskType, Team, TeamID, User, UserID};
+use crate::domain::models::{Character, CharacterName, Media, MediaID, Task, TaskID, TaskType, Team, TeamID, User, UserID};
 
 #[async_trait::async_trait]
 pub trait UserProvider: Send + Sync {
@@ -39,7 +39,7 @@ pub trait IsAdminProvider: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait MediaProvider: Send + Sync {
-    async fn media(&self, id: MediaID) -> Result<Media, AppError>;
+    async fn media(&self, id: &MediaID) -> Result<Media, AppError>;
 }
 
 #[async_trait::async_trait]
@@ -55,4 +55,10 @@ pub trait TaskProvider: Send + Sync {
 #[async_trait::async_trait]
 pub trait TasksProvider: Send + Sync {
     async fn tasks(&self, task_type: TaskType) -> Result<Vec<Task>, AppError>;
+}
+
+#[async_trait::async_trait]
+pub trait CharactersProvider: Send + Sync {
+    async fn characters(&self) -> Result<Vec<Character>, AppError>;
+    async fn character_by_name(&self, name: &CharacterName) -> Result<Option<Character>, AppError>;
 }

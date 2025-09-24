@@ -15,6 +15,6 @@ impl GetMedia {
     }
 
     pub async fn media(&self, id: MediaID) -> Result<Media, AppError> {
-        self.provider.media(id).await.map(Into::into)
+        self.provider.media(&id).await.map(Into::into)
     }
 }

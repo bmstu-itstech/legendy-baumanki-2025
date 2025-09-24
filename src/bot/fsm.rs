@@ -23,6 +23,7 @@ pub enum BotState {
     RebusAnswer(TaskID),
     Riddle,
     RiddleAnswer(TaskID),
+    CharacterName,
 
     // Admin
     Media(MediaID),

@@ -3,11 +3,7 @@ use std::sync::Arc;
 use teloxide::prelude::*;
 
 use crate::app::usecases::app::App;
-use crate::app::usecases::{
-    AnswerTask, CheckAdmin, CheckRegistered, CreateTeam, ExitTeam, GetMedia, GetProfile, GetTask,
-    GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam, JoinTeam, RegisterUser,
-    UploadMedia,
-};
+use crate::app::usecases::{AnswerTask, CheckAdmin, CheckRegistered, CreateTeam, ExitTeam, GetCharacter, GetCharacterNames, GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam, JoinTeam, RegisterUser, UploadMedia};
 use crate::bot::dispatcher::BotDispatcher;
 use crate::infra::postgres::PostgresRepository;
 use crate::utils::postgres::pool;
@@ -35,6 +31,8 @@ async fn main() {
         check_registered: CheckRegistered::new(repos.clone()),
         create_team: CreateTeam::new(repos.clone()),
         exit_team: ExitTeam::new(repos.clone(), repos.clone()),
+        get_character: GetCharacter::new(repos.clone(), repos.clone()),
+        get_character_names: GetCharacterNames::new(repos.clone()),
         get_media: GetMedia::new(repos.clone()),
         get_profile: GetProfile::new(repos.clone(), repos.clone()),
         get_task: GetTask::new(repos.clone()),

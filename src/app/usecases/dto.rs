@@ -1,8 +1,4 @@
-use crate::domain::models::{
-    Answer, AnswerID, AnswerText, FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID,
-    MediaType, Points, SerialNumber, Task, TaskID, TaskText, TaskType, Team, TeamID, TeamName,
-    User, Username,
-};
+use crate::domain::models::{Answer, AnswerID, AnswerText, FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType, Points, SerialNumber, Task, TaskID, TaskText, TaskType, Team, TeamID, TeamName, User, Username, CharacterID, CharacterName, CharacterQuote, CharacterLegacy, CharacterFact};
 use chrono::{DateTime, Utc};
 
 pub struct UserDTO {
@@ -120,4 +116,13 @@ impl From<Answer> for AnswerDTO {
             created_at: a.created_at().clone(),
         }
     }
+}
+
+pub struct CharacterDTO {
+    pub id: CharacterID,
+    pub name: CharacterName,
+    pub quote: CharacterQuote,
+    pub facts: Vec<CharacterFact>,
+    pub legacy: CharacterLegacy,
+    pub image_id: FileID,
 }
