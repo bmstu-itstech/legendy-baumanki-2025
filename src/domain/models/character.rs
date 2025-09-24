@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use crate::domain::error::DomainError;
 use crate::utils::uuid::new_pseudo_uuid;
 use crate::{not_empty_string_impl, pseudo_uuid_impl};
-use crate::domain::models::MediaID;
+use crate::domain::models::{MediaID, SerialNumber};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharacterID(String);
@@ -26,6 +26,7 @@ not_empty_string_impl!(CharacterLegacy);
 
 pub struct Character {
     id: CharacterID,
+    index: SerialNumber,
     name: CharacterName,
     quote: CharacterQuote,
     facts: Vec<CharacterFact>,
@@ -36,6 +37,7 @@ pub struct Character {
 impl Character {
     pub fn new(
         name: CharacterName,
+        index: SerialNumber,
         quote: CharacterQuote,
         facts: Vec<CharacterFact>,
         legacy: CharacterLegacy,
@@ -43,6 +45,7 @@ impl Character {
     ) -> Self {
         Self {
             id: CharacterID::new(),
+            index,
             name,
             quote,
             facts,
@@ -53,6 +56,7 @@ impl Character {
 
     pub fn restore(
         id: CharacterID,
+        index: SerialNumber,
         name: CharacterName,
         quote: CharacterQuote,
         facts: Vec<CharacterFact>,
@@ -61,6 +65,7 @@ impl Character {
     ) -> Self {
         Self {
             id,
+            index,
             name,
             quote,
             facts,
@@ -73,6 +78,10 @@ impl Character {
         &self.id
     }
 
+    pub fn index(&self) -> SerialNumber {
+        self.index
+    }
+    
     pub fn name(&self) -> &CharacterName {
         &self.name
     }

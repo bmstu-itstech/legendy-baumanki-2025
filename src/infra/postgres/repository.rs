@@ -176,6 +176,7 @@ impl AnswerRow {
 
 struct CharacterRow {
     id: String,
+    index: i32,
     name: String,
     quote: String,
     legacy: String,
@@ -186,6 +187,7 @@ impl CharacterRow {
     pub fn fetch_from_row(row: &Row) -> Result<CharacterRow, tokio_postgres::Error> {
         Ok(CharacterRow {
             id: row.try_get("id")?,
+            index: row.try_get("index")?,
             name: row.try_get("name")?,
             quote: row.try_get("quote")?,
             legacy: row.try_get("legacy")?,
@@ -775,11 +777,13 @@ impl CharactersProvider for PostgresRepository {
                     r#"
                 SELECT
                     id,
+                    index,
                     name,
                     quote,
                     legacy,
                     media_id
                 FROM characters
+                ORDER BY index ASC
                 "#,
                     &[],
                 )
@@ -817,6 +821,7 @@ impl CharactersProvider for PostgresRepository {
 
                 let char = Character::restore(
                     char_id,
+                    char_row.index as SerialNumber,
                     CharacterName::new(char_row.name)?,
                     CharacterQuote::new(char_row.quote)?,
                     facts,
@@ -836,6 +841,7 @@ impl CharactersProvider for PostgresRepository {
                     r#"
                 SELECT
                     id,
+                    index,
                     name,
                     quote,
                     legacy,
@@ -878,6 +884,7 @@ impl CharactersProvider for PostgresRepository {
 
                 let char = Character::restore(
                     CharacterID::try_from(char_row.id)?,
+                    char_row.index as SerialNumber,
                     CharacterName::new(char_row.name)?,
                     CharacterQuote::new(char_row.quote)?,
                     facts,
