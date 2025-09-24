@@ -557,18 +557,18 @@ async fn receive_character_name(
                 Err(AppError::CharacterNotFound(_)) => send_use_keyboard(&bot, &msg).await,
                 Err(err) => Err(err),
                 Ok(character) => {
-                    send_character(&bot, &msg, character).await?;
                     let names = get_character_names.characters().await?;
-                    prompt_character_name(bot, msg, dialogue, &names).await
+                    send_character(&bot, &msg, character, &names).await
                 }
             }
         }
     }
 }
 
-async fn send_character(bot: &Bot, msg: &Message, character: CharacterDTO) -> BotHandlerResult {
+async fn send_character(bot: &Bot, msg: &Message, character: CharacterDTO, names: &[CharacterName]) -> BotHandlerResult {
     bot.send_photo(msg.chat.id, InputFile::file_id(character.image_id.clone().into()))
         .caption(texts::character(character))
+        .reply_markup(make_characters_keyboard_with_back(names))
         .parse_mode(ParseMode::Html)
         .await?;
     Ok(())
