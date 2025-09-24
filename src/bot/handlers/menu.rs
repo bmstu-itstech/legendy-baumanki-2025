@@ -542,6 +542,7 @@ async fn receive_character_name(
     dialogue: BotDialogue,
     get_user_team: GetUserTeam,
     get_character: GetCharacter,
+    get_character_names: GetCharacterNames,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
@@ -557,8 +558,8 @@ async fn receive_character_name(
                 Err(err) => Err(err),
                 Ok(character) => {
                     send_character(&bot, &msg, character).await?;
-                    let has_team = get_user_team.user_team(user_id).await?.is_some();
-                    prompt_menu(bot, msg, dialogue, has_team).await
+                    let names = get_character_names.characters().await?;
+                    prompt_character_name(bot, msg, dialogue, &names).await
                 }
             }
         }
