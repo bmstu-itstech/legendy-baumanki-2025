@@ -34,7 +34,27 @@ not_empty_string_impl!(TaskText);
 
 #[derive(Debug, Clone)]
 pub struct CorrectAnswer(String);
-not_empty_string_impl!(CorrectAnswer);
+
+impl CorrectAnswer {
+    pub fn new(mut s: String) -> Result<Self, DomainError> {
+        if s == "" {
+            return Err(DomainError::InvalidValue(
+                "invalid CorrectAnswer: expected not empty string".to_string(),
+            ));
+        }
+        s = normalize_string(s);
+        Ok(Self(s))
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    pub fn to_string(&self) -> String {
+        self.0.clone()
+    }
+}
+
 
 pub type LevenshteinDistance = usize;
 
