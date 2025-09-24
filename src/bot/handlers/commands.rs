@@ -39,6 +39,7 @@ async fn handle_start_command(
     check_registered: CheckRegistered,
     get_user_team: GetUserTeam,
     join_team: JoinTeam,
+    get_media: GetMedia,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     let registered = check_registered.is_registered(user_id).await?;
@@ -55,12 +56,12 @@ async fn handle_start_command(
     match (registered, team_id_opt) {
         // Не зарегистрирован и нет кода команды
         (false, None) => {
-            send_greeting_message(&bot, &msg).await?;
+            send_greeting_message(&bot, &msg, get_media).await?;
             prompt_pd_agreement(bot, msg, dialogue, None).await?;
         }
         // Не зарегистрирован и есть код команды в ссылке
         (false, Some(team_id)) => {
-            send_greeting_message(&bot, &msg).await?;
+            send_greeting_message(&bot, &msg, get_media).await?;
             prompt_pd_agreement(bot, msg, dialogue, Some(team_id)).await?;
         }
         // Зарегистрирован и нет кода команды
@@ -95,13 +96,16 @@ async fn handle_start_command(
     Ok(())
 }
 
-async fn send_greeting_message(bot: &Bot, msg: &Message) -> BotHandlerResult {
+async fn send_greeting_message(bot: &Bot, msg: &Message, get_media: GetMedia) -> BotHandlerResult {
+    let rules_1 = get_media.media(MediaID::new(RULES_IMAGE_1.to_string()).unwrap()).await?;
+    let rules_2 = get_media.media(MediaID::new(RULES_IMAGE_2.to_string()).unwrap()).await?;
+    log::debug!("{}", rules_1.file_id().as_str());
     let media_group = vec![
         InputMedia::Photo(InputMediaPhoto::new(InputFile::file_id(
-            RULES_IMAGE_1.into(),
+            rules_1.file_id().clone().into(),
         ))),
         InputMedia::Photo(InputMediaPhoto::new(InputFile::file_id(
-            RULES_IMAGE_2.into(),
+            rules_2.file_id().clone().into(),
         ))),
     ];
 

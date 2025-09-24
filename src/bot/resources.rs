@@ -1,5 +1,3 @@
-pub const RULES_IMAGE_1: &str =
-    "AgACAgIAAxkBAAIZFGjDZW-b-yl4mg8YuTOi-IsLS22hAAL49TEbYY8ZSoYVyUp5GBjjAQADAgADeQADNgQ";
+pub const RULES_IMAGE_1: &str = "rules-01";
 
-pub const RULES_IMAGE_2: &str =
-    "AgACAgIAAxkBAAIZFWjDZW_o6MC5rzb3xWC55R-ruP9hAAL59TEbYY8ZSujECWqwi5LxAQADAgADeQADNgQ";
+pub const RULES_IMAGE_2: &str = "rules-02";
