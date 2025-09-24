@@ -23,7 +23,7 @@ impl ExitTeam {
             ))),
             Some(team) => {
                 let team_id = team.id().clone();
-                match team.remove_member(user_id).map_err(AppError::DomainError)? {
+                match team.remove_member(user_id)? {
                     Some(team) => self.repos.save_team(team).await,
                     None => self.repos.delete_team(&team_id).await,
                 }

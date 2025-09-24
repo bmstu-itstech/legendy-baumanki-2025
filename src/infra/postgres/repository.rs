@@ -6,11 +6,10 @@ use tokio_postgres::{Row, Transaction};
 
 use crate::app::error::AppError;
 use crate::app::ports::{
-    IsAdminProvider, IsRegisteredUserProvider, MediaProvider,
-    MediaRepository, TaskProvider, TasksProvider, TeamByMemberProvider, TeamProvider,
-    TeamRepository, UserProvider, UserRepository,
+    IsAdminProvider, IsRegisteredUserProvider, MediaProvider, MediaRepository, TaskProvider,
+    TasksProvider, TeamByMemberProvider, TeamProvider, TeamRepository, UserProvider,
+    UserRepository,
 };
-use crate::domain::error::DomainError;
 use crate::domain::models::{
     Answer, AnswerID, AnswerText, CorrectAnswer, FileID, FullName, GroupName, LevenshteinDistance,
     Media, MediaID, MediaType as DomainMediaType, Points, SerialNumber, Task, TaskID, TaskText,
@@ -178,8 +177,8 @@ impl AnswerRow {
 impl UserProvider for PostgresRepository {
     async fn user(&self, id: UserID) -> Result<User, AppError> {
         with_client!(self.pool, async |client: &Client| {
-            let row = client
-                .query_one(
+            let row_opt = client
+                .query_opt(
                     r#"
                 SELECT
                     id,
@@ -195,18 +194,15 @@ impl UserProvider for PostgresRepository {
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
 
-            let user_row =
-                UserRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
+            if let Some(row) = row_opt {
+                let user_row =
+                    UserRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
 
-            let username = user_row
-                .username
-                .map(|s| Username::new(s))
-                .transpose()
-                .map_err(AppError::DomainError)?;
+                let username = user_row.username.map(|s| Username::new(s)).transpose()?;
 
-            let rows = client
-                .query(
-                    r#"
+                let rows = client
+                    .query(
+                        r#"
                 SELECT
                     id,
                     task_id,
@@ -217,32 +213,35 @@ impl UserProvider for PostgresRepository {
                 WHERE
                     user_id = $1
                 "#,
-                    &[&id.as_i64()],
-                )
-                .await
-                .map_err(|err| AppError::Internal(err.into()))?;
-
-            let mut answers = Vec::new();
-            for row in rows {
-                let row = AnswerRow::fetch_from_row(&row)
+                        &[&id.as_i64()],
+                    )
+                    .await
                     .map_err(|err| AppError::Internal(err.into()))?;
-                let answer = Answer::restore(
-                    AnswerID::try_from(row.id).map_err(AppError::DomainError)?,
-                    TaskID::try_from(row.task_id).map_err(AppError::DomainError)?,
-                    AnswerText::new(row.text),
-                    Points::new(row.points).map_err(AppError::DomainError)?,
-                    row.created_at,
-                );
-                answers.push(answer);
-            }
 
-            Ok(User::restore(
-                UserID::new(user_row.id),
-                username,
-                FullName::new(user_row.full_name).map_err(AppError::DomainError)?,
-                GroupName::new(user_row.group_name).map_err(AppError::DomainError)?,
-                answers,
-            ))
+                let mut answers = Vec::new();
+                for row in rows {
+                    let row = AnswerRow::fetch_from_row(&row)
+                        .map_err(|err| AppError::Internal(err.into()))?;
+                    let answer = Answer::restore(
+                        AnswerID::try_from(row.id)?,
+                        TaskID::try_from(row.task_id)?,
+                        AnswerText::new(row.text),
+                        Points::new(row.points)?,
+                        row.created_at,
+                    );
+                    answers.push(answer);
+                }
+
+                Ok(User::restore(
+                    UserID::new(user_row.id),
+                    username,
+                    FullName::new(user_row.full_name)?,
+                    GroupName::new(user_row.group_name)?,
+                    answers,
+                ))
+            } else {
+                Err(AppError::UserNotFound(id.as_i64()))
+            }
         })
     }
 }
@@ -292,9 +291,7 @@ impl TeamProvider for PostgresRepository {
             let row = if let Some(row) = row_opt {
                 row
             } else {
-                return Err(AppError::DomainError(DomainError::TeamNotFound(
-                    id.to_string(),
-                )));
+                return Err(AppError::TeamNotFound(id.to_string()));
             };
 
             let team_row =
@@ -324,12 +321,11 @@ impl TeamProvider for PostgresRepository {
                 .collect();
 
             let team = Team::restore(
-                TeamID::try_from(team_row.id).map_err(AppError::DomainError)?,
-                TeamName::new(team_row.name).map_err(AppError::DomainError)?,
+                TeamID::try_from(team_row.id)?,
+                TeamName::new(team_row.name)?,
                 UserID::new(team_row.captain_id),
                 member_ids,
-            )
-            .map_err(AppError::DomainError)?;
+            )?;
 
             Ok(team)
         })
@@ -392,12 +388,11 @@ impl TeamByMemberProvider for PostgresRepository {
                 .collect();
 
             let team = Team::restore(
-                TeamID::try_from(team_row.id).map_err(AppError::DomainError)?,
-                TeamName::new(team_row.name).map_err(AppError::DomainError)?,
+                TeamID::try_from(team_row.id)?,
+                TeamName::new(team_row.name)?,
                 UserID::new(team_row.captain_id),
                 member_ids,
-            )
-            .map_err(AppError::DomainError)?;
+            )?;
 
             Ok(Some(team))
         })
@@ -579,8 +574,8 @@ impl MediaProvider for PostgresRepository {
                 let media_row =
                     MediaRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
                 let media = Media::new(
-                    MediaID::new(media_row.id).map_err(AppError::DomainError)?,
-                    FileID::new(media_row.file_id).map_err(AppError::DomainError)?,
+                    MediaID::new(media_row.id)?,
+                    FileID::new(media_row.file_id)?,
                     media_row.media_type.into(),
                 );
                 Ok(media)
@@ -671,13 +666,13 @@ impl TaskProvider for PostgresRepository {
                 let task_row =
                     TaskRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
                 let task = Task::restore(
-                    TaskID::try_from(task_row.id).map_err(AppError::DomainError)?,
+                    TaskID::try_from(task_row.id)?,
                     task_row.index as SerialNumber,
                     task_row.task_type.into(),
-                    MediaID::new(task_row.media_id).map_err(AppError::DomainError)?,
-                    TaskText::new(task_row.explanation).map_err(AppError::DomainError)?,
-                    CorrectAnswer::new(task_row.correct_answer).map_err(AppError::DomainError)?,
-                    Points::new(task_row.points).map_err(AppError::DomainError)?,
+                    MediaID::new(task_row.media_id)?,
+                    TaskText::new(task_row.explanation)?,
+                    CorrectAnswer::new(task_row.correct_answer)?,
+                    Points::new(task_row.points)?,
                     task_row.max_levenshtein_distance as LevenshteinDistance,
                 );
                 Ok(task)
@@ -720,13 +715,13 @@ impl TasksProvider for PostgresRepository {
                 let task_row =
                     TaskRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
                 let task = Task::restore(
-                    TaskID::try_from(task_row.id).map_err(AppError::DomainError)?,
+                    TaskID::try_from(task_row.id)?,
                     task_row.index as SerialNumber,
                     task_row.task_type.into(),
-                    MediaID::new(task_row.media_id).map_err(AppError::DomainError)?,
-                    TaskText::new(task_row.explanation).map_err(AppError::DomainError)?,
-                    CorrectAnswer::new(task_row.correct_answer).map_err(AppError::DomainError)?,
-                    Points::new(task_row.points).map_err(AppError::DomainError)?,
+                    MediaID::new(task_row.media_id)?,
+                    TaskText::new(task_row.explanation)?,
+                    CorrectAnswer::new(task_row.correct_answer)?,
+                    Points::new(task_row.points)?,
                     task_row.max_levenshtein_distance as LevenshteinDistance,
                 );
                 tasks.push(task);

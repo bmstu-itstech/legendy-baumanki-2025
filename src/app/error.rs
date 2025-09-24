@@ -6,7 +6,13 @@ pub type StdError = Box<dyn std::error::Error + Send + Sync>;
 #[derive(thiserror::Error, Debug)]
 pub enum AppError {
     #[error(transparent)]
-    DomainError(DomainError),
+    DomainError(#[from] DomainError),
+
+    #[error("user not found: {0}")]
+    UserNotFound(i64),
+
+    #[error("team not found: {0}")]
+    TeamNotFound(String),
 
     #[error("media {0:?} not found")]
     MediaNotFound(MediaID),

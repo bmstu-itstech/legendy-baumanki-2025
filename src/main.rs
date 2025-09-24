@@ -4,9 +4,9 @@ use teloxide::prelude::*;
 
 use crate::app::usecases::app::App;
 use crate::app::usecases::{
-    AnswerTask, CheckAdmin, CheckRegistered, CreateTeam, ExitTeam,
-    GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam,
-    JoinTeam, RegisterUser, UploadMedia,
+    AnswerTask, CheckAdmin, CheckRegistered, CreateTeam, ExitTeam, GetMedia, GetProfile, GetTask,
+    GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam, JoinTeam, RegisterUser,
+    UploadMedia,
 };
 use crate::bot::dispatcher::BotDispatcher;
 use crate::infra::postgres::PostgresRepository;

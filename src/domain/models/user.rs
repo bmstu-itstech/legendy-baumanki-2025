@@ -112,14 +112,6 @@ impl User {
         self.answers.insert(answer.task_id().clone(), answer);
     }
 
-    pub fn change_full_name(&mut self, new: FullName) {
-        self.full_name = new;
-    }
-
-    pub fn change_group_name(&mut self, new: GroupName) {
-        self.group_name = new;
-    }
-
     pub fn id(&self) -> UserID {
         self.id
     }

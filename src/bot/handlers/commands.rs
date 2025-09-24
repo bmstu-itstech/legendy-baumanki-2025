@@ -83,7 +83,7 @@ async fn handle_start_command(
                     Err(AppError::DomainError(DomainError::TeamIsFull(_))) => {
                         send_team_is_full(&bot, &msg).await?;
                     }
-                    Err(AppError::DomainError(DomainError::TeamNotFound(_))) => {
+                    Err(AppError::TeamNotFound(_)) => {
                         send_team_not_exists(&bot, &msg).await?;
                     }
                     Err(err) => return Err(err),
@@ -97,8 +97,12 @@ async fn handle_start_command(
 }
 
 async fn send_greeting_message(bot: &Bot, msg: &Message, get_media: GetMedia) -> BotHandlerResult {
-    let rules_1 = get_media.media(MediaID::new(RULES_IMAGE_1.to_string()).unwrap()).await?;
-    let rules_2 = get_media.media(MediaID::new(RULES_IMAGE_2.to_string()).unwrap()).await?;
+    let rules_1 = get_media
+        .media(MediaID::new(RULES_IMAGE_1.to_string()).unwrap())
+        .await?;
+    let rules_2 = get_media
+        .media(MediaID::new(RULES_IMAGE_2.to_string()).unwrap())
+        .await?;
     log::debug!("{}", rules_1.file_id().as_str());
     let media_group = vec![
         InputMedia::Photo(InputMediaPhoto::new(InputFile::file_id(
@@ -180,7 +184,7 @@ async fn receive_media(
 ) -> BotHandlerResult {
     if let Some(photos) = msg.photo() {
         let photo = photos.first().unwrap();
-        let file_id = FileID::new(photo.file.id.0.clone()).map_err(AppError::DomainError)?;
+        let file_id = FileID::new(photo.file.id.0.clone())?;
         let media = Media::image(media_id.clone(), file_id.clone());
         upload_media.upload_media(media).await?;
         let media = get_media.media(media_id.clone()).await?;
@@ -193,7 +197,7 @@ async fn receive_media(
         .await?;
         send_successful_media_uploaded(bot, msg, dialogue, &file_id).await?;
     } else if let Some(video_note) = msg.video_note() {
-        let file_id = FileID::new(video_note.file.id.0.clone()).map_err(AppError::DomainError)?;
+        let file_id = FileID::new(video_note.file.id.0.clone())?;
         let media = Media::video_note(media_id.clone(), file_id.clone());
         upload_media.upload_media(media).await?;
         let media = get_media.media(media_id.clone()).await?;

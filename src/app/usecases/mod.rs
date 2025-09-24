@@ -2,8 +2,6 @@ pub mod app;
 pub mod dto;
 
 mod answer_task;
-mod change_full_name;
-mod change_group_name;
 mod check_admin;
 mod check_registered;
 mod create_team;
@@ -20,8 +18,6 @@ mod register_user;
 mod upload_media;
 
 pub use answer_task::*;
-pub use change_full_name::*;
-pub use change_group_name::*;
 pub use check_admin::*;
 pub use check_registered::*;
 pub use create_team::*;

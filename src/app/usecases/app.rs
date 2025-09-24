@@ -1,7 +1,7 @@
 use crate::app::usecases::{
-    AnswerTask, CheckAdmin, CheckRegistered, CreateTeam, ExitTeam,
-    GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam,
-    JoinTeam, RegisterUser, UploadMedia,
+    AnswerTask, CheckAdmin, CheckRegistered, CreateTeam, ExitTeam, GetMedia, GetProfile, GetTask,
+    GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam, JoinTeam, RegisterUser,
+    UploadMedia,
 };
 
 pub struct App {

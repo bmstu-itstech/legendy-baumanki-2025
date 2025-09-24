@@ -149,7 +149,7 @@ async fn receive_team_code(
         Some(text) => match TeamID::try_from(text.to_string()) {
             Err(_) => send_invalid_team_code(&bot, &msg).await?,
             Ok(team_id) => match join_team.join_team(user_id, team_id).await {
-                Err(AppError::DomainError(DomainError::TeamNotFound(_))) => {
+                Err(AppError::TeamNotFound(_)) => {
                     send_team_not_found(&bot, &msg).await?;
                     prompt_menu(bot, msg, dialogue, false).await?;
                 }

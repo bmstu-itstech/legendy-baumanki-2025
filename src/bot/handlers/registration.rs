@@ -141,7 +141,7 @@ async fn receive_group_name(
                                 send_team_is_full(&bot, &msg).await?;
                                 prompt_menu(bot, msg, dialogue, false).await?;
                             }
-                            Err(AppError::DomainError(DomainError::TeamNotFound(_))) => {
+                            Err(AppError::TeamNotFound(_)) => {
                                 send_team_not_exists(&bot, &msg).await?;
                                 prompt_menu(bot, msg, dialogue, team_id_opt.is_some()).await?;
                             }
