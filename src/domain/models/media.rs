@@ -1,5 +1,7 @@
-use crate::domain::error::DomainError;
 use serde::{Deserialize, Serialize};
+
+use crate::domain::error::DomainError;
+use crate::not_empty_string_impl;
 
 pub const MEDIA_ID_MAX_LENGTH: usize = 64;
 
@@ -39,20 +41,7 @@ impl MediaID {
 
 #[derive(Clone, Debug)]
 pub struct FileID(String);
-
-impl FileID {
-    pub fn new(id: String) -> Self {
-        Self(id)
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
-}
+not_empty_string_impl!(FileID);
 
 pub struct Media {
     id: MediaID,

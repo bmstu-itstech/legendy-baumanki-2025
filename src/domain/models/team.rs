@@ -1,70 +1,18 @@
-use crate::domain::error::DomainError;
-use crate::utils::short_uuid::new_short_uuid;
 use serde::{Deserialize, Serialize};
+
+use crate::domain::error::DomainError;
+use crate::utils::uuid::new_pseudo_uuid;
+use crate::{not_empty_string_impl, pseudo_uuid_impl};
 
 use super::user::UserID;
 
-const TEAM_ID_LENGTH: usize = 6; // Вероятность пересечения порядка 10^(-7) или 0.00001%
-
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TeamID(String);
-
-impl TeamID {
-    pub fn new() -> Self {
-        Self(new_short_uuid(TEAM_ID_LENGTH))
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
-}
-
-impl TryFrom<String> for TeamID {
-    type Error = DomainError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        if s.len() != TEAM_ID_LENGTH {
-            return Err(DomainError::InvalidValue(format!(
-                "expected TeamID length = {}, got {}",
-                TEAM_ID_LENGTH,
-                s.len()
-            )));
-        }
-        if !s.chars().into_iter().all(|c| c.is_alphanumeric()) {
-            return Err(DomainError::InvalidValue(format!(
-                "invalid TeamID: expected alphanumeric character, got {}",
-                s
-            )));
-        }
-        Ok(Self(s))
-    }
-}
+pseudo_uuid_impl!(TeamID, 6);
 
 #[derive(Debug, Clone)]
 pub struct TeamName(String);
-
-impl TeamName {
-    pub fn new(s: String) -> Result<Self, DomainError> {
-        if s == "" {
-            return Err(DomainError::InvalidValue(
-                "invalid TeamName: expected not empty string".to_string(),
-            ));
-        }
-        Ok(Self(s.into()))
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.0.as_str()
-    }
-
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
-}
+not_empty_string_impl!(TeamName);
 
 pub const MIN_COMPLETED_TEAM_SIZE: usize = 5;
 pub const MAX_TEAM_SIZE: usize = 8;

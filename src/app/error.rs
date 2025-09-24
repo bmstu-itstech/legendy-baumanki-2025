@@ -13,7 +13,7 @@ pub enum AppError {
 
     #[error("task {0:?} not found")]
     TaskNotFound(TaskID),
-    
+
     #[error(transparent)]
     Internal(#[from] StdError),
 }

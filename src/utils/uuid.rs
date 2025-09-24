@@ -1,6 +1,6 @@
 use rand::Rng;
 
-pub fn new_short_uuid(length: usize) -> String {
+pub fn new_pseudo_uuid(length: usize) -> String {
     const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
     let mut rng = rand::rng();
 

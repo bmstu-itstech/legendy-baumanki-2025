@@ -1,10 +1,11 @@
-use std::collections::HashMap;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::domain::error::DomainError;
-use crate::domain::models::{Answer, TaskID};
 use crate::domain::models::points::Points;
+use crate::domain::models::{Answer, TaskID};
+use crate::not_empty_string_impl;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct UserID(i64);
@@ -21,43 +22,11 @@ impl UserID {
 
 #[derive(Debug, Clone)]
 pub struct Username(String);
-
-impl Username {
-    pub fn new(s: String) -> Result<Self, DomainError> {
-        if s == "" {
-            return Err(DomainError::InvalidValue(
-                "invalid Username: expected not empty string".to_string(),
-            ));
-        }
-        Ok(Self(s))
-    }
-
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
-}
+not_empty_string_impl!(Username);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FullName(String);
-
-impl FullName {
-    pub fn new(s: String) -> Result<Self, DomainError> {
-        if s == "" {
-            return Err(DomainError::InvalidValue(
-                "invalid FullName: expected not empty string".to_string(),
-            ));
-        }
-        Ok(Self(s.into()))
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.0.as_str()
-    }
-
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
-}
+not_empty_string_impl!(FullName);
 
 #[derive(Debug, Clone)]
 pub struct GroupName(String);
@@ -115,7 +84,7 @@ impl User {
             answers: HashMap::new(),
         }
     }
-    
+
     pub fn restore(
         id: UserID,
         username: Option<Username>,
@@ -125,12 +94,18 @@ impl User {
     ) -> Self {
         let answers = HashMap::from_iter(answers.into_iter().map(|a| (a.task_id().clone(), a)));
         Self {
-            id, username, full_name, group_name, answers,
+            id,
+            username,
+            full_name,
+            group_name,
+            answers,
         }
     }
 
     pub fn total_points(&self) -> Points {
-        self.answers.values().fold(Points::zero(), |sum, answer| sum + answer.points() )
+        self.answers
+            .values()
+            .fold(Points::zero(), |sum, answer| sum + answer.points())
     }
 
     pub fn add_answer(&mut self, answer: Answer) {
@@ -144,7 +119,7 @@ impl User {
     pub fn change_group_name(&mut self, new: GroupName) {
         self.group_name = new;
     }
-    
+
     pub fn id(&self) -> UserID {
         self.id
     }
@@ -160,11 +135,11 @@ impl User {
     pub fn group_name(&self) -> &GroupName {
         &self.group_name
     }
-    
+
     pub fn answers(&self) -> &HashMap<TaskID, Answer> {
         &self.answers
     }
-    
+
     pub fn answer(&self, task_id: &TaskID) -> Option<&Answer> {
         self.answers.get(task_id)
     }

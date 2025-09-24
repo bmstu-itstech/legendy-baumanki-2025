@@ -1,15 +1,15 @@
 use std::ops::Add;
+
 use crate::domain::error::DomainError;
 
-#[derive(Debug, Clone, Copy)]
-#[derive(PartialOrd, Ord, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq)]
 pub struct Points(i32);
 
 impl Points {
     pub fn zero() -> Self {
         Points(0)
     }
-    
+
     pub fn new(value: i32) -> Result<Points, DomainError> {
         if value < 0 {
             return Err(DomainError::InvalidValue(format!(

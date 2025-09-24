@@ -232,11 +232,20 @@ pub fn media_uploaded(file_id: &FileID) -> String {
 }
 
 pub fn rebuses_menu_text(tasks: &[UserTaskDTO]) -> String {
-    let completed = tasks.iter().fold(0, |acc, task| acc + if task.solved { 1 } else { 0 });
+    let completed = tasks
+        .iter()
+        .fold(0, |acc, task| acc + if task.solved { 1 } else { 0 });
     let total = tasks.len();
     let list = tasks
         .into_iter()
-        .map(|t| format!("• Ребус #{} {}\n", t.index, if t.solved { "✅" } else { "⏳" } )).fold(String::new(), |acc, s| acc + s.as_str());
+        .map(|t| {
+            format!(
+                "• Ребус #{} {}\n",
+                t.index,
+                if t.solved { "✅" } else { "⏳" }
+            )
+        })
+        .fold(String::new(), |acc, s| acc + s.as_str());
     format!(
         "🔍 <b>Меню ребусов</b>\n\
         <i>Решено: {completed}/{total}</i>\n\
@@ -252,11 +261,20 @@ pub fn rebuses_menu_text(tasks: &[UserTaskDTO]) -> String {
 }
 
 pub fn riddle_menu_text(tasks: &[UserTaskDTO]) -> String {
-    let completed = tasks.iter().fold(0, |acc, task| acc + if task.solved { 1 } else { 0 });
+    let completed = tasks
+        .iter()
+        .fold(0, |acc, task| acc + if task.solved { 1 } else { 0 });
     let total = tasks.len();
     let list = tasks
         .into_iter()
-        .map(|t| format!("• Загадка #{} {}\n", t.index, if t.solved { "✅" } else { "⏳" } )).fold(String::new(), |acc, s| acc + s.as_str());
+        .map(|t| {
+            format!(
+                "• Загадка #{} {}\n",
+                t.index,
+                if t.solved { "✅" } else { "⏳" }
+            )
+        })
+        .fold(String::new(), |acc, s| acc + s.as_str());
     format!(
         "🔍 <b>Меню загадок</b>\n\
         <i>Решено: {completed}/{total}</i>\n\

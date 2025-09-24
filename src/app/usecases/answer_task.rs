@@ -12,11 +12,22 @@ pub struct AnswerTask {
 }
 
 impl AnswerTask {
-    pub fn new(task_provider: Arc<dyn TaskProvider>, user_repository: Arc<dyn UserRepository>) -> Self {
-        Self { task_provider, user_repository }
+    pub fn new(
+        task_provider: Arc<dyn TaskProvider>,
+        user_repository: Arc<dyn UserRepository>,
+    ) -> Self {
+        Self {
+            task_provider,
+            user_repository,
+        }
     }
-    
-    pub async fn answer(&self, user_id: UserID, task_id: TaskID, text: String) -> Result<AnswerDTO, AppError> {
+
+    pub async fn answer(
+        &self,
+        user_id: UserID,
+        task_id: TaskID,
+        text: String,
+    ) -> Result<AnswerDTO, AppError> {
         let task = self.task_provider.task(task_id).await?;
         let mut user = self.user_repository.user(user_id).await?;
         let answer = task.answer(text);

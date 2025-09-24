@@ -4,10 +4,16 @@ use teloxide::types::{Me, Message, ParseMode};
 
 use crate::app::error::AppError;
 use crate::app::usecases::dto::{Profile, TaskDTO, TeamDTO, TeamWithMembersDTO, UserTaskDTO};
-use crate::app::usecases::{AnswerTask, CreateTeam, ExitTeam, GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam, JoinTeam};
+use crate::app::usecases::{
+    AnswerTask, CreateTeam, ExitTeam, GetMedia, GetProfile, GetTask, GetTeamWithMembers,
+    GetUserTask, GetUserTasks, GetUserTeam, JoinTeam,
+};
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::shared::{send_enter_message, send_use_keyboard};
-use crate::bot::keyboards::{make_back_keyboard, make_menu_keyboard_with_team, make_menu_keyboard_without_team, make_task_keyboard_with_back, make_yes_and_back_keyboard};
+use crate::bot::keyboards::{
+    make_back_keyboard, make_menu_keyboard_with_team, make_menu_keyboard_without_team,
+    make_task_keyboard_with_back, make_yes_and_back_keyboard,
+};
 use crate::bot::{BotHandlerResult, keyboards, texts};
 use crate::domain::error::DomainError;
 use crate::domain::models::{TaskID, TaskType, TeamID, TeamName, UserID};
@@ -387,7 +393,11 @@ async fn receive_riddle(
     Ok(())
 }
 
-async fn send_rebus_already_solved(bot: &Bot, msg: &Message, tasks: &[UserTaskDTO]) -> BotHandlerResult {
+async fn send_rebus_already_solved(
+    bot: &Bot,
+    msg: &Message,
+    tasks: &[UserTaskDTO],
+) -> BotHandlerResult {
     bot.send_message(msg.chat.id, texts::REBUS_ALREADY_SOLVED)
         .reply_markup(make_task_keyboard_with_back(tasks, TaskType::Rebus))
         .parse_mode(ParseMode::Html)
@@ -395,7 +405,11 @@ async fn send_rebus_already_solved(bot: &Bot, msg: &Message, tasks: &[UserTaskDT
     Ok(())
 }
 
-async fn send_riddle_already_solved(bot: &Bot, msg: &Message, tasks: &[UserTaskDTO]) -> BotHandlerResult {
+async fn send_riddle_already_solved(
+    bot: &Bot,
+    msg: &Message,
+    tasks: &[UserTaskDTO],
+) -> BotHandlerResult {
     bot.send_message(msg.chat.id, texts::RIDDLE_ALREADY_SOLVED)
         .reply_markup(make_task_keyboard_with_back(tasks, TaskType::Riddle))
         .parse_mode(ParseMode::Html)

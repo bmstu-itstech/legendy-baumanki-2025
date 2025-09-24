@@ -5,9 +5,17 @@ use tokio_postgres::{Client, GenericClient};
 use tokio_postgres::{Row, Transaction};
 
 use crate::app::error::AppError;
-use crate::app::ports::{IsAdminProvider, IsRegisteredUserProvider, IsTeamExistsProvider, MediaProvider, MediaRepository, TaskProvider, TasksProvider, TeamByMemberProvider, TeamProvider, TeamRepository, UserProvider, UserRepository};
+use crate::app::ports::{
+    IsAdminProvider, IsRegisteredUserProvider, IsTeamExistsProvider, MediaProvider,
+    MediaRepository, TaskProvider, TasksProvider, TeamByMemberProvider, TeamProvider,
+    TeamRepository, UserProvider, UserRepository,
+};
 use crate::domain::error::DomainError;
-use crate::domain::models::{Answer, AnswerID, AnswerText, FileID, FullName, GroupName, Media, MediaID, MediaType as DomainMediaType, Points, SerialNumber, Task, TaskID, Team, TeamID, TeamName, User, UserID, Username, TaskType as DomainTaskType, TaskText, CorrectAnswer, LevenshteinDistance};
+use crate::domain::models::{
+    Answer, AnswerID, AnswerText, CorrectAnswer, FileID, FullName, GroupName, LevenshteinDistance,
+    Media, MediaID, MediaType as DomainMediaType, Points, SerialNumber, Task, TaskID, TaskText,
+    TaskType as DomainTaskType, Team, TeamID, TeamName, User, UserID, Username,
+};
 use crate::{with_client, with_transaction};
 
 pub struct PostgresRepository {
@@ -197,8 +205,8 @@ impl UserProvider for PostgresRepository {
                 .map_err(AppError::DomainError)?;
 
             let rows = client
-            .query(
-                r#"
+                .query(
+                    r#"
                 SELECT
                     id,
                     task_id,
@@ -209,14 +217,15 @@ impl UserProvider for PostgresRepository {
                 WHERE
                     user_id = $1
                 "#,
-                &[&id.as_i64()],
-            )
+                    &[&id.as_i64()],
+                )
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
 
             let mut answers = Vec::new();
             for row in rows {
-                let row = AnswerRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
+                let row = AnswerRow::fetch_from_row(&row)
+                    .map_err(|err| AppError::Internal(err.into()))?;
                 let answer = Answer::restore(
                     AnswerID::try_from(row.id).map_err(AppError::DomainError)?,
                     TaskID::try_from(row.task_id).map_err(AppError::DomainError)?,
@@ -421,9 +430,8 @@ impl IsTeamExistsProvider for PostgresRepository {
 impl UserRepository for PostgresRepository {
     async fn save_user(&self, user: User) -> Result<(), AppError> {
         with_transaction!(self.pool, async |tx: &Transaction| {
-            tx
-                .execute(
-                    r#"
+            tx.execute(
+                r#"
                 INSERT INTO 
                     users (
                         id,
@@ -438,15 +446,15 @@ impl UserRepository for PostgresRepository {
                     full_name = $3, 
                     group_name = $4
                 "#,
-                    &[
-                        &user.id().as_i64(),
-                        &user.username().clone().map(|u| u.to_string()),
-                        &user.full_name().to_string(),
-                        &user.group_name().to_string(),
-                    ],
-                )
-                .await
-                .map_err(|err| AppError::Internal(err.into()))?;
+                &[
+                    &user.id().as_i64(),
+                    &user.username().clone().map(|u| u.to_string()),
+                    &user.full_name().to_string(),
+                    &user.group_name().to_string(),
+                ],
+            )
+            .await
+            .map_err(|err| AppError::Internal(err.into()))?;
 
             tx.execute(
                 r#"
@@ -454,10 +462,10 @@ impl UserRepository for PostgresRepository {
                 WHERE
                     user_id = $1
                 "#,
-                &[&user.id().as_i64()]
+                &[&user.id().as_i64()],
             )
-                .await
-                .map_err(|err| AppError::Internal(err.into()))?;
+            .await
+            .map_err(|err| AppError::Internal(err.into()))?;
 
             for answer in user.answers().values() {
                 tx.execute(
@@ -481,7 +489,7 @@ impl UserRepository for PostgresRepository {
                         &answer.text().as_str(),
                         &answer.points().as_i32(),
                         &answer.created_at(),
-                    ]
+                    ],
                 )
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
@@ -594,7 +602,7 @@ impl MediaProvider for PostgresRepository {
                     MediaRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
                 let media = Media::new(
                     MediaID::new(media_row.id).map_err(AppError::DomainError)?,
-                    FileID::new(media_row.file_id),
+                    FileID::new(media_row.file_id).map_err(AppError::DomainError)?,
                     media_row.media_type.into(),
                 );
                 Ok(media)
@@ -661,8 +669,8 @@ impl TaskProvider for PostgresRepository {
     async fn task(&self, id: TaskID) -> Result<Task, AppError> {
         with_client!(self.pool, async |client: &Client| {
             let row_opt = client
-            .query_opt(
-                r#"
+                .query_opt(
+                    r#"
                 SELECT
                     id,
                     index,
@@ -676,14 +684,14 @@ impl TaskProvider for PostgresRepository {
                 WHERE
                     id = $1
                 "#,
-                &[&id.as_str()],
-            )
+                    &[&id.as_str()],
+                )
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
 
             if let Some(row) = row_opt {
-                let task_row = TaskRow::fetch_from_row(&row)
-                    .map_err(|err| AppError::Internal(err.into()))?;
+                let task_row =
+                    TaskRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
                 let task = Task::restore(
                     TaskID::try_from(task_row.id).map_err(AppError::DomainError)?,
                     task_row.index as SerialNumber,
@@ -708,8 +716,8 @@ impl TasksProvider for PostgresRepository {
         with_client!(self.pool, async |client: &Client| {
             let task_type: TaskType = task_type.into();
             let rows = client
-            .query(
-                r#"
+                .query(
+                    r#"
                 SELECT
                     id,
                     index,
@@ -724,15 +732,15 @@ impl TasksProvider for PostgresRepository {
                     task_type = $1
                 ORDER BY index ASC
                 "#,
-                &[&task_type],
-            )
+                    &[&task_type],
+                )
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
 
             let mut tasks = Vec::new();
             for row in rows {
-                let task_row = TaskRow::fetch_from_row(&row)
-                    .map_err(|err| AppError::Internal(err.into()))?;
+                let task_row =
+                    TaskRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
                 let task = Task::restore(
                     TaskID::try_from(task_row.id).map_err(AppError::DomainError)?,
                     task_row.index as SerialNumber,

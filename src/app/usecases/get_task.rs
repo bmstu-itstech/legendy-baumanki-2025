@@ -7,14 +7,14 @@ use crate::domain::models::TaskID;
 
 #[derive(Clone)]
 pub struct GetTask {
-    provider: Arc<dyn TaskProvider>
+    provider: Arc<dyn TaskProvider>,
 }
 
 impl GetTask {
     pub fn new(provider: Arc<dyn TaskProvider>) -> Self {
         Self { provider }
     }
-    
+
     pub async fn task(&self, id: TaskID) -> Result<TaskDTO, AppError> {
         self.provider.task(id).await.map(Into::into)
     }

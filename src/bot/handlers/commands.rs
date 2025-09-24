@@ -176,7 +176,7 @@ async fn receive_media(
 ) -> BotHandlerResult {
     if let Some(photos) = msg.photo() {
         let photo = photos.first().unwrap();
-        let file_id = FileID::new(photo.file.id.0.clone());
+        let file_id = FileID::new(photo.file.id.0.clone()).map_err(AppError::DomainError)?;
         let media = Media::image(media_id.clone(), file_id.clone());
         upload_media.upload_media(media).await?;
         let media = get_media.media(media_id.clone()).await?;
@@ -189,7 +189,7 @@ async fn receive_media(
         .await?;
         send_successful_media_uploaded(bot, msg, dialogue, &file_id).await?;
     } else if let Some(video_note) = msg.video_note() {
-        let file_id = FileID::new(video_note.file.id.0.clone());
+        let file_id = FileID::new(video_note.file.id.0.clone()).map_err(AppError::DomainError)?;
         let media = Media::video_note(media_id.clone(), file_id.clone());
         upload_media.upload_media(media).await?;
         let media = get_media.media(media_id.clone()).await?;

@@ -13,10 +13,17 @@ pub struct GetUserTask {
 
 impl GetUserTask {
     pub fn new(task_provider: Arc<dyn TaskProvider>, user_provider: Arc<dyn UserProvider>) -> Self {
-        Self { task_provider, user_provider }
+        Self {
+            task_provider,
+            user_provider,
+        }
     }
 
-    pub async fn user_task(&self, user_id: UserID, task_id: TaskID) -> Result<UserTaskDTO, AppError> {
+    pub async fn user_task(
+        &self,
+        user_id: UserID,
+        task_id: TaskID,
+    ) -> Result<UserTaskDTO, AppError> {
         let task = self.task_provider.task(task_id).await?;
         let user = self.user_provider.user(user_id).await?;
         let solved = if let Some(answer) = user.answer(task.id()) {
