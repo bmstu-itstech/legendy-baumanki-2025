@@ -145,11 +145,11 @@ pub fn successful_joined_team(team_name: TeamName) -> String {
     )
 }
 
-pub const PROMPT_CHARACTER_NAME: StaticStr = "✨ <b>Легенды Бауманки</b>\n\
+pub const PROMPT_CHARACTER_NAME: StaticStr = "☺️ <b>Отличный выбор!</b>\n\
     \n\
-    Познакомься с великими учёными, инженерами и космонавтами, которые начинали свой путь здесь, в стенах МГТУ им. Н.Э. Баумана.\n\
+    Познакомься с великими учёными, инженерами и конструкторами, которые начинали свой путь здесь, в стенах МГТУ им. Н.Э. Баумана.\n\
     \n\
-    <b><i>Кого из них ты хочешь узнать лучше?</i></b>";
+    <b><i>Кого из них ты хочешь узнать лучше?</i><b>";
 
 pub fn profile(profile: Profile) -> String {
     match profile.team_name {
