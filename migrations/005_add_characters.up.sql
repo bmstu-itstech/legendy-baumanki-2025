@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS characters (
-    id          VARCHAR(6)  PRIMARY KEY,
+    id          VARCHAR(4)  PRIMARY KEY,
     name        VARCHAR     NOT NULL,
     quote       VARCHAR     NOT NULL,
     legacy      VARCHAR     NOT NULL,
