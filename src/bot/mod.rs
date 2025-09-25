@@ -1,6 +1,8 @@
-use crate::app::error::AppError;
+use std::fmt::{Debug, Display};
 use teloxide::RequestError;
-use teloxide::dispatching::dialogue::InMemStorageError;
+use teloxide::dispatching::dialogue::{InMemStorageError, PostgresStorageError};
+
+use crate::app::error::AppError;
 
 pub mod dispatcher;
 mod fsm;
@@ -19,6 +21,12 @@ impl From<RequestError> for AppError {
 
 impl From<InMemStorageError> for AppError {
     fn from(value: InMemStorageError) -> Self {
+        Self::Internal(value.into())
+    }
+}
+
+impl<SE: Display + Debug + Send + Sync + 'static> From<PostgresStorageError<SE>> for AppError {
+    fn from(value: PostgresStorageError<SE>) -> Self {
         Self::Internal(value.into())
     }
 }

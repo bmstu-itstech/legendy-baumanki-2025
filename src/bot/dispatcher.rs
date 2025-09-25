@@ -1,5 +1,7 @@
-use teloxide::dispatching::dialogue::{InMemStorage, enter};
+use std::sync::Arc;
+use teloxide::dispatching::dialogue::{enter, PostgresStorage};
 use teloxide::dispatching::{DefaultKey, UpdateHandler};
+use teloxide::dispatching::dialogue::serializer::Json;
 use teloxide::prelude::*;
 
 use crate::app::error::AppError;
@@ -12,7 +14,7 @@ use crate::bot::handlers::registration::registration_scheme;
 pub struct BotDispatcher;
 
 impl BotDispatcher {
-    pub async fn create(bot: Bot, app: App) -> Dispatcher<Bot, AppError, DefaultKey> {
+    pub async fn create(bot: Bot, app: App, postgres_storage: Arc<PostgresStorage<Json>>) -> Dispatcher<Bot, AppError, DefaultKey> {
         Dispatcher::builder(bot, Self::scheme())
             .dependencies(dptree::deps![
                 app.answer_task,
@@ -32,7 +34,7 @@ impl BotDispatcher {
                 app.join_team,
                 app.register_user,
                 app.upload_media,
-                InMemStorage::<BotState>::new()
+                postgres_storage
             ])
             .default_handler(|upd| async move {
                 log::warn!("Unhandled update: {:?}", upd);
@@ -42,7 +44,7 @@ impl BotDispatcher {
     }
 
     fn scheme() -> UpdateHandler<AppError> {
-        enter::<Update, InMemStorage<BotState>, BotState, _>()
+        enter::<Update, PostgresStorage<Json>, BotState, _>()
             .branch(commands_scheme())
             .branch(registration_scheme())
             .branch(menu_scheme())

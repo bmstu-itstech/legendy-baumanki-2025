@@ -12,7 +12,8 @@ use crate::domain::models::{FullName, GroupName, TeamID, UserID, Username};
 use crate::bot::handlers::shared::{send_enter_message, send_internal_error};
 use crate::domain::error::DomainError;
 use teloxide::dispatching::UpdateHandler;
-use teloxide::dispatching::dialogue::{InMemStorage, enter};
+use teloxide::dispatching::dialogue::{enter, PostgresStorage};
+use teloxide::dispatching::dialogue::serializer::Json;
 use teloxide::prelude::*;
 use teloxide::types::{KeyboardRemove, ParseMode};
 
@@ -204,10 +205,8 @@ async fn send_registration_successful(bot: &Bot, msg: &Message) -> BotHandlerRes
 pub fn registration_scheme() -> UpdateHandler<AppError> {
     use dptree::case;
 
-    let message_handler = Update::filter_message()
+    Update::filter_message()
         .branch(case![BotState::PDAgreement(team_id_opt)].endpoint(receive_pd_agreement))
         .branch(case![BotState::FullName(team_id_opt)].endpoint(receive_full_name))
-        .branch(case![BotState::GroupName(team_id_opt, full_name)].endpoint(receive_group_name));
-
-    enter::<Update, InMemStorage<BotState>, BotState, _>().branch(message_handler)
+        .branch(case![BotState::GroupName(team_id_opt, full_name)].endpoint(receive_group_name))
 }

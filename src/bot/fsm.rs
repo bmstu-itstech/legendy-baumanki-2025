@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
-use teloxide::dispatching::dialogue::InMemStorage;
+use teloxide::dispatching::dialogue::PostgresStorage;
+use teloxide::dispatching::dialogue::serializer::Json;
 use teloxide::prelude::Dialogue;
 
 use crate::domain::models::{FullName, MediaID, TaskID, TeamID};
@@ -29,4 +30,4 @@ pub enum BotState {
     Media(MediaID),
 }
 
-pub type BotDialogue = Dialogue<BotState, InMemStorage<BotState>>;
+pub type BotDialogue = Dialogue<BotState, PostgresStorage<Json>>;

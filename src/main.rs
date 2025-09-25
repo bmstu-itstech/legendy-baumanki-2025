@@ -1,5 +1,6 @@
 use std::env;
 use std::sync::Arc;
+use teloxide::dispatching::dialogue::{serializer, PostgresStorage};
 use teloxide::prelude::*;
 
 use crate::app::usecases::app::App;
@@ -24,6 +25,8 @@ async fn main() {
     log::info!("Connected to PostgreSQL database: {}", uri);
 
     let repos = Arc::new(PostgresRepository::new(pool));
+    let state_storage = PostgresStorage::open(&uri, 1, serializer::Json)
+        .await.expect("unable to create PostgreSQL state storage");
 
     let app = App {
         answer_task: AnswerTask::new(repos.clone(), repos.clone()),
@@ -46,7 +49,7 @@ async fn main() {
     };
 
     let bot = Bot::from_env();
-    let mut dispatcher = BotDispatcher::create(bot, app).await;
+    let mut dispatcher = BotDispatcher::create(bot, app, state_storage).await;
 
     dispatcher.dispatch().await;
 }
