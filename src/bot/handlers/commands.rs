@@ -5,7 +5,7 @@ use teloxide::types::{InputFile, InputMedia, InputMediaPhoto, ParseMode};
 
 use crate::app::error::AppError;
 use crate::app::usecases::{
-    CheckAdmin, CheckRegistered, GetMedia, GetUserTeam, JoinTeam, UploadMedia,
+    CheckAdmin, CheckRegistered, GetMedia, GetUser, GetUserTeam, JoinTeam, UploadMedia,
 };
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::menu::{
@@ -40,6 +40,7 @@ async fn handle_start_command(
     get_user_team: GetUserTeam,
     join_team: JoinTeam,
     get_media: GetMedia,
+    get_user: GetUser,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     let registered = check_registered.is_registered(user_id).await?;
@@ -66,8 +67,8 @@ async fn handle_start_command(
         }
         // Зарегистрирован и нет кода команды
         (true, None) => {
-            let has_team = get_user_team.user_team(user_id).await?.is_some();
-            prompt_menu(bot, msg, dialogue, has_team).await?;
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await?;
         }
         // Зарегистрирован и есть код команды
         (true, Some(team_id)) => {
@@ -90,7 +91,8 @@ async fn handle_start_command(
                     Ok(team) => send_joining_team_successful(&bot, &msg, team.name).await?,
                 },
             }
-            prompt_menu(bot, msg, dialogue, true).await?;
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await?;
         }
     }
     Ok(())

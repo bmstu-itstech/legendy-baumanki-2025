@@ -1,8 +1,8 @@
-use serde::{Deserialize, Serialize};
 use crate::domain::error::DomainError;
+use crate::domain::models::{MediaID, SerialNumber};
 use crate::utils::uuid::new_pseudo_uuid;
 use crate::{not_empty_string_impl, pseudo_uuid_impl};
-use crate::domain::models::{MediaID, SerialNumber};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CharacterID(String);
@@ -81,7 +81,7 @@ impl Character {
     pub fn index(&self) -> SerialNumber {
         self.index
     }
-    
+
     pub fn name(&self) -> &CharacterName {
         &self.name
     }
@@ -97,7 +97,7 @@ impl Character {
     pub fn legacy(&self) -> &CharacterLegacy {
         &self.legacy
     }
-    
+
     pub fn media_id(&self) -> &MediaID {
         &self.media_id
     }

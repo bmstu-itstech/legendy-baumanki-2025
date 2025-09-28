@@ -1,5 +1,5 @@
 use crate::app::error::AppError;
-use crate::app::usecases::{JoinTeam, RegisterUser};
+use crate::app::usecases::{GetUser, JoinTeam, RegisterUser};
 use crate::bot::BotHandlerResult;
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::menu::{
@@ -12,8 +12,8 @@ use crate::domain::models::{FullName, GroupName, TeamID, UserID, Username};
 use crate::bot::handlers::shared::{send_enter_message, send_internal_error};
 use crate::domain::error::DomainError;
 use teloxide::dispatching::UpdateHandler;
-use teloxide::dispatching::dialogue::{enter, PostgresStorage};
 use teloxide::dispatching::dialogue::serializer::Json;
+use teloxide::dispatching::dialogue::{PostgresStorage, enter};
 use teloxide::prelude::*;
 use teloxide::types::{KeyboardRemove, ParseMode};
 
@@ -121,6 +121,7 @@ async fn receive_group_name(
     (team_id_opt, full_name): (Option<TeamID>, FullName),
     register_user: RegisterUser,
     join_team: JoinTeam,
+    get_user: GetUser,
 ) -> BotHandlerResult {
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
@@ -140,11 +141,13 @@ async fn receive_group_name(
                         match join_team.join_team(user_id, team_id).await {
                             Err(AppError::DomainError(DomainError::TeamIsFull(_))) => {
                                 send_team_is_full(&bot, &msg).await?;
-                                prompt_menu(bot, msg, dialogue, false).await?;
+                                let user = get_user.user(user_id).await?;
+                                prompt_menu(bot, msg, dialogue, &user).await?;
                             }
                             Err(AppError::TeamNotFound(_)) => {
                                 send_team_not_exists(&bot, &msg).await?;
-                                prompt_menu(bot, msg, dialogue, team_id_opt.is_some()).await?;
+                                let user = get_user.user(user_id).await?;
+                                prompt_menu(bot, msg, dialogue, &user).await?;
                             }
                             Err(err) => {
                                 log::error!("failed to join team: {:?}", err);
@@ -153,11 +156,13 @@ async fn receive_group_name(
                             }
                             Ok(team) => {
                                 send_joining_team_successful(&bot, &msg, team.name.clone()).await?;
-                                prompt_menu(bot, msg, dialogue, team_id_opt.is_some()).await?;
+                                let user = get_user.user(user_id).await?;
+                                prompt_menu(bot, msg, dialogue, &user).await?;
                             }
                         }
                     } else {
-                        prompt_menu(bot, msg, dialogue, team_id_opt.is_some()).await?;
+                        let user = get_user.user(user_id).await?;
+                        prompt_menu(bot, msg, dialogue, &user).await?;
                     }
                 }
             }

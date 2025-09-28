@@ -3,8 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::domain::error::DomainError;
+use crate::domain::models::participation_mode::ParticipationMode;
 use crate::domain::models::points::Points;
-use crate::domain::models::{Answer, TaskID};
+use crate::domain::models::{Answer, TaskID, TeamID};
 use crate::not_empty_string_impl;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -67,6 +68,7 @@ pub struct User {
     full_name: FullName,
     group_name: GroupName,
     answers: HashMap<TaskID, Answer>,
+    mode: ParticipationMode,
 }
 
 impl User {
@@ -82,6 +84,7 @@ impl User {
             full_name,
             group_name,
             answers: HashMap::new(),
+            mode: ParticipationMode::WantTeam, // По умолчанию считаем, что участник всё же хочет быть в команде
         }
     }
 
@@ -91,6 +94,7 @@ impl User {
         full_name: FullName,
         group_name: GroupName,
         answers: Vec<Answer>,
+        preferred_mode: ParticipationMode,
     ) -> Self {
         let answers = HashMap::from_iter(answers.into_iter().map(|a| (a.task_id().clone(), a)));
         Self {
@@ -99,6 +103,7 @@ impl User {
             full_name,
             group_name,
             answers,
+            mode: preferred_mode,
         }
     }
 
@@ -110,6 +115,18 @@ impl User {
 
     pub fn add_answer(&mut self, answer: Answer) {
         self.answers.insert(answer.task_id().clone(), answer);
+    }
+
+    pub fn switch_to_solo_mode(&mut self) {
+        self.mode = ParticipationMode::Solo;
+    }
+
+    pub fn switch_to_want_team_mode(&mut self) {
+        self.mode = ParticipationMode::WantTeam;
+    }
+
+    pub fn switch_to_team_mode(&mut self, team_id: TeamID) {
+        self.mode = ParticipationMode::Team(team_id);
     }
 
     pub fn id(&self) -> UserID {
@@ -130,6 +147,10 @@ impl User {
 
     pub fn answers(&self) -> &HashMap<TaskID, Answer> {
         &self.answers
+    }
+
+    pub fn mode(&self) -> &ParticipationMode {
+        &self.mode
     }
 
     pub fn answer(&self, task_id: &TaskID) -> Option<&Answer> {

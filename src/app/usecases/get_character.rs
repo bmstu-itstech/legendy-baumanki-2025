@@ -12,8 +12,14 @@ pub struct GetCharacter {
 }
 
 impl GetCharacter {
-    pub fn new(provider: Arc<dyn CharactersProvider>, media_provider: Arc<dyn MediaProvider>) -> Self {
-        GetCharacter { characters_provider: provider, media_provider }
+    pub fn new(
+        provider: Arc<dyn CharactersProvider>,
+        media_provider: Arc<dyn MediaProvider>,
+    ) -> Self {
+        GetCharacter {
+            characters_provider: provider,
+            media_provider,
+        }
     }
 
     pub async fn character(&self, name: &CharacterName) -> Result<CharacterDTO, AppError> {
@@ -21,7 +27,7 @@ impl GetCharacter {
             None => Err(AppError::CharacterNotFound(name.clone())),
             Some(character) => {
                 let image = self.media_provider.media(character.media_id()).await?;
-                Ok(CharacterDTO{
+                Ok(CharacterDTO {
                     id: character.id().clone(),
                     name: character.name().clone(),
                     quote: character.quote().clone(),

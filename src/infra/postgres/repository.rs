@@ -13,8 +13,9 @@ use crate::app::ports::{
 use crate::domain::models::{
     Answer, AnswerID, AnswerText, Character, CharacterFact, CharacterID, CharacterLegacy,
     CharacterName, CharacterQuote, CorrectAnswer, FileID, FullName, GroupName, LevenshteinDistance,
-    Media, MediaID, MediaType as DomainMediaType, Points, SerialNumber, Task, TaskID, TaskText,
-    TaskType as DomainTaskType, Team, TeamID, TeamName, User, UserID, Username,
+    Media, MediaID, MediaType as DomainMediaType, ParticipationMode as DomainParticipationMode,
+    Points, SerialNumber, Task, TaskID, TaskText, TaskType as DomainTaskType, Team, TeamID,
+    TeamName, User, UserID, Username,
 };
 use crate::{with_client, with_transaction};
 
@@ -33,6 +34,8 @@ struct UserRow {
     username: Option<String>,
     full_name: String,
     group_name: String,
+    mode: ParticipationMode,
+    team_id: Option<String>,
 }
 
 impl UserRow {
@@ -42,6 +45,8 @@ impl UserRow {
             username: row.try_get("username")?,
             full_name: row.try_get("full_name")?,
             group_name: row.try_get("group_name")?,
+            mode: row.try_get("mode")?,
+            team_id: row.try_get("team_id")?,
         })
     }
 }
@@ -210,6 +215,24 @@ impl CharacterFactRow {
     }
 }
 
+#[derive(Debug, ToSql, FromSql)]
+#[postgres(name = "participation_mode", rename_all = "snake_case")]
+enum ParticipationMode {
+    Solo,
+    WantTeam,
+    Team,
+}
+
+impl From<DomainParticipationMode> for ParticipationMode {
+    fn from(value: DomainParticipationMode) -> Self {
+        match value {
+            DomainParticipationMode::Solo => ParticipationMode::Solo,
+            DomainParticipationMode::WantTeam => ParticipationMode::WantTeam,
+            DomainParticipationMode::Team(_) => ParticipationMode::Team,
+        }
+    }
+}
+
 #[async_trait::async_trait]
 impl UserProvider for PostgresRepository {
     async fn user(&self, id: UserID) -> Result<User, AppError> {
@@ -217,15 +240,17 @@ impl UserProvider for PostgresRepository {
             let row_opt = client
                 .query_opt(
                     r#"
-                SELECT
-                    id,
-                    username,
-                    full_name,
-                    group_name
-                FROM users
-                WHERE 
-                    id = $1
-                "#,
+                    SELECT
+                        id,
+                        username,
+                        full_name,
+                        group_name,
+                        mode,
+                        team_id
+                    FROM users
+                    WHERE 
+                        id = $1
+                    "#,
                     &[&id.as_i64()],
                 )
                 .await
@@ -240,16 +265,16 @@ impl UserProvider for PostgresRepository {
                 let rows = client
                     .query(
                         r#"
-                SELECT
-                    id,
-                    task_id,
-                    text,
-                    points,
-                    created_at
-                FROM answers
-                WHERE
-                    user_id = $1
-                "#,
+                        SELECT
+                            id,
+                            task_id,
+                            text,
+                            points,
+                            created_at
+                        FROM answers
+                        WHERE
+                            user_id = $1
+                        "#,
                         &[&id.as_i64()],
                     )
                     .await
@@ -269,12 +294,24 @@ impl UserProvider for PostgresRepository {
                     answers.push(answer);
                 }
 
+                let mode = match user_row.mode {
+                    ParticipationMode::Solo => DomainParticipationMode::Solo,
+                    ParticipationMode::WantTeam => DomainParticipationMode::WantTeam,
+                    ParticipationMode::Team => {
+                        let team_id = user_row
+                            .team_id
+                            .expect("expected team_id if user in team mode");
+                        DomainParticipationMode::Team(TeamID::try_from(team_id)?)
+                    }
+                };
+
                 Ok(User::restore(
                     UserID::new(user_row.id),
                     username,
                     FullName::new(user_row.full_name)?,
                     GroupName::new(user_row.group_name)?,
                     answers,
+                    mode,
                 ))
             } else {
                 Err(AppError::UserNotFound(id.as_i64()))
@@ -290,12 +327,12 @@ impl IsRegisteredUserProvider for PostgresRepository {
             let row = client
                 .query_opt(
                     r#"
-                SELECT 1
-                FROM users
-                WHERE
-                    id = $1
-                LIMIT 1
-                "#,
+                    SELECT 1
+                    FROM users
+                    WHERE
+                        id = $1
+                    LIMIT 1
+                    "#,
                     &[&user_id.as_i64()],
                 )
                 .await
@@ -307,19 +344,19 @@ impl IsRegisteredUserProvider for PostgresRepository {
 
 #[async_trait::async_trait]
 impl TeamProvider for PostgresRepository {
-    async fn team(&self, id: TeamID) -> Result<Team, AppError> {
+    async fn team(&self, id: &TeamID) -> Result<Team, AppError> {
         with_client!(self.pool, async |client: &Client| {
             let row_opt = client
                 .query_opt(
                     r#"
-                SELECT
-                    id,
-                    name,
-                    captain_id
-                FROM teams
-                WHERE
-                    id = $1
-                "#,
+                    SELECT
+                        id,
+                        name,
+                        captain_id
+                    FROM teams
+                    WHERE
+                        id = $1
+                    "#,
                     &[&id.as_str()],
                 )
                 .await
@@ -337,11 +374,11 @@ impl TeamProvider for PostgresRepository {
             let rows = client
                 .query(
                     r#"
-                SELECT id
-                FROM users
-                WHERE
-                    team_id = $1
-                "#,
+                    SELECT id
+                    FROM users
+                    WHERE
+                        team_id = $1
+                    "#,
                     &[&id.as_str()],
                 )
                 .await
@@ -376,17 +413,17 @@ impl TeamByMemberProvider for PostgresRepository {
             let row_opt = client
                 .query_opt(
                     r#"
-                SELECT
-                    t.id,
-                    t.name,
-                    t.captain_id
-                FROM teams t
-                LEFT JOIN
-                    users u
-                    ON u.team_id = t.id
-                WHERE u.id = $1
-                LIMIT 1
-                "#,
+                    SELECT
+                        t.id,
+                        t.name,
+                        t.captain_id
+                    FROM teams t
+                    LEFT JOIN
+                        users u
+                        ON u.team_id = t.id
+                    WHERE u.id = $1
+                    LIMIT 1
+                    "#,
                     &[&member_id.as_i64()],
                 )
                 .await
@@ -404,11 +441,11 @@ impl TeamByMemberProvider for PostgresRepository {
             let rows = client
                 .query(
                     r#"
-                SELECT id
-                FROM users
-                WHERE
-                    team_id = $1
-                "#,
+                    SELECT id
+                    FROM users
+                    WHERE
+                        team_id = $1
+                    "#,
                     &[&team_row.id.as_str()],
                 )
                 .await
@@ -440,6 +477,7 @@ impl TeamByMemberProvider for PostgresRepository {
 impl UserRepository for PostgresRepository {
     async fn save_user(&self, user: User) -> Result<(), AppError> {
         with_transaction!(self.pool, async |tx: &Transaction| {
+            let mode = ParticipationMode::from(user.mode().clone());
             tx.execute(
                 r#"
                 INSERT INTO 
@@ -447,20 +485,23 @@ impl UserRepository for PostgresRepository {
                         id,
                         username,
                         full_name,
-                        group_name
+                        group_name,
+                        mode
                     )
                 VALUES
-                    ($1, $2, $3, $4)
+                    ($1, $2, $3, $4, $5)
                 ON CONFLICT (id) DO UPDATE SET
                     username = $2, 
                     full_name = $3, 
-                    group_name = $4
+                    group_name = $4,
+                    mode = $5
                 "#,
                 &[
                     &user.id().as_i64(),
                     &user.username().clone().map(|u| u.to_string()),
                     &user.full_name().to_string(),
                     &user.group_name().to_string(),
+                    &mode,
                 ],
             )
             .await
@@ -516,17 +557,17 @@ impl TeamRepository for PostgresRepository {
         with_transaction!(self.pool, async |tx: &Transaction| {
             tx.execute(
                 r#"
-                    INSERT INTO
-                        teams (
-                            id,
-                            name,
-                            captain_id
-                        )
-                    VALUES
-                        ($1, $2, $3)
-                    ON CONFLICT (id) DO UPDATE SET
-                        name = $2,
-                        captain_id = $3
+                INSERT INTO
+                    teams (
+                        id,
+                        name,
+                        captain_id
+                    )
+                VALUES
+                    ($1, $2, $3)
+                ON CONFLICT (id) DO UPDATE SET
+                    name = $2,
+                    captain_id = $3
                 "#,
                 &[
                     &team.id().to_string(),
@@ -575,10 +616,10 @@ impl TeamRepository for PostgresRepository {
             client
                 .execute(
                     r#"
-                DELETE FROM teams
-                WHERE
-                    id = $1
-                "#,
+                    DELETE FROM teams
+                    WHERE
+                        id = $1
+                    "#,
                     &[&team_id.as_str()],
                 )
                 .await
@@ -595,13 +636,13 @@ impl MediaProvider for PostgresRepository {
             let row_opt = client
                 .query_opt(
                     r#"
-                SELECT
-                    id,
-                    file_id,
-                    media_type
-                FROM  media
-                WHERE id = $1
-                "#,
+                    SELECT
+                        id,
+                        file_id,
+                        media_type
+                    FROM media
+                    WHERE id = $1
+                    "#,
                     &[&id.as_str()],
                 )
                 .await
@@ -659,12 +700,12 @@ impl IsAdminProvider for PostgresRepository {
             let row = client
                 .query_opt(
                     r#"
-                SELECT 1
-                FROM admins
-                WHERE
-                    user_id = $1
-                LIMIT 1
-                "#,
+                    SELECT 1
+                    FROM admins
+                    WHERE
+                        user_id = $1
+                    LIMIT 1
+                    "#,
                     &[&user_id.as_i64()],
                 )
                 .await
@@ -681,19 +722,19 @@ impl TaskProvider for PostgresRepository {
             let row_opt = client
                 .query_opt(
                     r#"
-                SELECT
-                    id,
-                    index,
-                    task_type,
-                    media_id,
-                    explanation,
-                    correct_answer,
-                    points,
-                    max_levenshtein_distance
-                FROM tasks
-                WHERE
-                    id = $1
-                "#,
+                    SELECT
+                        id,
+                        index,
+                        task_type,
+                        media_id,
+                        explanation,
+                        correct_answer,
+                        points,
+                        max_levenshtein_distance
+                    FROM tasks
+                    WHERE
+                        id = $1
+                    "#,
                     &[&id.as_str()],
                 )
                 .await
@@ -728,20 +769,20 @@ impl TasksProvider for PostgresRepository {
             let rows = client
                 .query(
                     r#"
-                SELECT
-                    id,
-                    index,
-                    task_type,
-                    media_id,
-                    explanation,
-                    correct_answer,
-                    points,
-                    max_levenshtein_distance
-                FROM tasks
-                WHERE
-                    task_type = $1
-                ORDER BY index ASC
-                "#,
+                    SELECT
+                        id,
+                        index,
+                        task_type,
+                        media_id,
+                        explanation,
+                        correct_answer,
+                        points,
+                        max_levenshtein_distance
+                    FROM tasks
+                    WHERE
+                        task_type = $1
+                    ORDER BY index ASC
+                    "#,
                     &[&task_type],
                 )
                 .await
@@ -775,16 +816,16 @@ impl CharactersProvider for PostgresRepository {
             let rows = tx
                 .query(
                     r#"
-                SELECT
-                    id,
-                    index,
-                    name,
-                    quote,
-                    legacy,
-                    media_id
-                FROM characters
-                ORDER BY index ASC
-                "#,
+                    SELECT
+                        id,
+                        index,
+                        name,
+                        quote,
+                        legacy,
+                        media_id
+                    FROM characters
+                    ORDER BY index ASC
+                    "#,
                     &[],
                 )
                 .await
@@ -799,13 +840,13 @@ impl CharactersProvider for PostgresRepository {
                 let fact_rows = tx
                     .query(
                         r#"
-                    SELECT
-                        character_id,
-                        fact
-                    FROM character_facts
-                    WHERE 
-                        character_id = $1
-                    "#,
+                        SELECT
+                            character_id,
+                            fact
+                        FROM character_facts
+                        WHERE 
+                            character_id = $1
+                        "#,
                         &[&char_id.as_str()],
                     )
                     .await
@@ -839,17 +880,17 @@ impl CharactersProvider for PostgresRepository {
             let row_opt = tx
                 .query_opt(
                     r#"
-                SELECT
-                    id,
-                    index,
-                    name,
-                    quote,
-                    legacy,
-                    media_id
-                FROM characters
-                WHERE 
-                    name = $1
-                "#,
+                    SELECT
+                        id,
+                        index,
+                        name,
+                        quote,
+                        legacy,
+                        media_id
+                    FROM characters
+                    WHERE 
+                        name = $1
+                    "#,
                     &[&name.as_str()],
                 )
                 .await
@@ -862,13 +903,13 @@ impl CharactersProvider for PostgresRepository {
                 let fact_rows = tx
                     .query(
                         r#"
-                    SELECT
-                        character_id,
-                        fact
-                    FROM character_facts
-                    WHERE 
-                        character_id = $1
-                    "#,
+                        SELECT
+                            character_id,
+                            fact
+                        FROM character_facts
+                        WHERE 
+                            character_id = $1
+                        "#,
                         &[&char_row.id],
                     )
                     .await

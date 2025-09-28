@@ -1,5 +1,7 @@
 use crate::app::error::AppError;
-use crate::domain::models::{Character, CharacterName, Media, MediaID, Task, TaskID, TaskType, Team, TeamID, User, UserID};
+use crate::domain::models::{
+    Character, CharacterName, Media, MediaID, Task, TaskID, TaskType, Team, TeamID, User, UserID,
+};
 
 #[async_trait::async_trait]
 pub trait UserProvider: Send + Sync {
@@ -13,7 +15,7 @@ pub trait IsRegisteredUserProvider: Send + Sync {
 
 #[async_trait::async_trait]
 pub trait TeamProvider: Send + Sync {
-    async fn team(&self, id: TeamID) -> Result<Team, AppError>;
+    async fn team(&self, id: &TeamID) -> Result<Team, AppError>;
 }
 
 #[async_trait::async_trait]

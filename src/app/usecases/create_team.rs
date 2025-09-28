@@ -1,18 +1,22 @@
 use std::sync::Arc;
 
 use crate::app::error::AppError;
-use crate::app::ports::TeamRepository;
+use crate::app::ports::{TeamRepository, UserRepository};
 use crate::app::usecases::dto::TeamDTO;
 use crate::domain::models::{Team, TeamName, UserID};
 
 #[derive(Clone)]
 pub struct CreateTeam {
-    repos: Arc<dyn TeamRepository>,
+    team_repos: Arc<dyn TeamRepository>,
+    user_repos: Arc<dyn UserRepository>,
 }
 
 impl CreateTeam {
-    pub fn new(repos: Arc<dyn TeamRepository>) -> Self {
-        Self { repos }
+    pub fn new(team_repos: Arc<dyn TeamRepository>, user_repos: Arc<dyn UserRepository>) -> Self {
+        Self {
+            team_repos,
+            user_repos,
+        }
     }
 
     pub async fn create_team(
@@ -22,7 +26,10 @@ impl CreateTeam {
     ) -> Result<TeamDTO, AppError> {
         let team = Team::new(name, captain_id);
         let dto = team.clone().into();
-        self.repos.save_team(team).await?;
+        let mut user = self.user_repos.user(captain_id).await?;
+        user.switch_to_team_mode(team.id().clone());
+        self.team_repos.save_team(team).await?;
+        self.user_repos.save_user(user).await?;
         Ok(dto)
     }
 }

@@ -1,10 +1,16 @@
-use crate::domain::models::{Answer, AnswerID, AnswerText, FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType, Points, SerialNumber, Task, TaskID, TaskText, TaskType, Team, TeamID, TeamName, User, Username, CharacterID, CharacterName, CharacterQuote, CharacterLegacy, CharacterFact};
+use crate::domain::models::{
+    Answer, AnswerID, AnswerText, CharacterFact, CharacterID, CharacterLegacy, CharacterName,
+    CharacterQuote, FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType,
+    ParticipationMode, Points, SerialNumber, Task, TaskID, TaskText, TaskType, Team, TeamID,
+    TeamName, User, Username,
+};
 use chrono::{DateTime, Utc};
 
 pub struct UserDTO {
     pub username: Option<Username>,
     pub full_name: FullName,
     pub group_name: GroupName,
+    pub mode: ParticipationMode,
 }
 
 impl From<User> for UserDTO {
@@ -13,6 +19,7 @@ impl From<User> for UserDTO {
             username: u.username().cloned(),
             full_name: u.full_name().clone(),
             group_name: u.group_name().clone(),
+            mode: u.mode().clone(),
         }
     }
 }
@@ -38,9 +45,22 @@ impl From<Team> for TeamDTO {
 }
 
 pub struct Profile {
+    pub username: Option<Username>,
     pub full_name: FullName,
     pub group_name: GroupName,
     pub team_name: Option<TeamName>,
+    pub mode: ParticipationMode,
+}
+
+impl Into<UserDTO> for Profile {
+    fn into(self) -> UserDTO {
+        UserDTO {
+            username: self.username,
+            full_name: self.full_name,
+            group_name: self.group_name,
+            mode: self.mode,
+        }
+    }
 }
 
 pub struct TeamWithMembersDTO {

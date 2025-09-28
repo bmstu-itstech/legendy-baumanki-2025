@@ -25,6 +25,8 @@ pub enum BotState {
     Riddle,
     RiddleAnswer(TaskID),
     CharacterName,
+    SoloModeApproval,
+    TeamModeApproval,
 
     // Admin
     Media(MediaID),

@@ -3,11 +3,20 @@ use teloxide::prelude::*;
 use teloxide::types::{InputFile, Me, Message, ParseMode};
 
 use crate::app::error::AppError;
-use crate::app::usecases::dto::{CharacterDTO, Profile, TaskDTO, TeamDTO, TeamWithMembersDTO, UserTaskDTO};
-use crate::app::usecases::{AnswerTask, CreateTeam, ExitTeam, GetCharacter, GetCharacterNames, GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUserTask, GetUserTasks, GetUserTeam, JoinTeam};
+use crate::app::usecases::dto::{
+    CharacterDTO, Profile, TaskDTO, TeamDTO, TeamWithMembersDTO, UserDTO, UserTaskDTO,
+};
+use crate::app::usecases::{
+    AnswerTask, CreateTeam, ExitTeam, GetCharacter, GetCharacterNames, GetMedia, GetProfile,
+    GetTask, GetTeamWithMembers, GetUser, GetUserTask, GetUserTasks, GetUserTeam, JoinTeam,
+    SwitchToSoloMode, SwitchToWantTeamMode,
+};
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::shared::{send_enter_message, send_use_keyboard};
-use crate::bot::keyboards::{make_back_keyboard, make_characters_keyboard_with_back, make_menu_keyboard_with_team, make_menu_keyboard_without_team, make_task_keyboard_with_back, make_yes_and_back_keyboard};
+use crate::bot::keyboards::{
+    make_back_keyboard, make_characters_keyboard_with_back, make_menu_keyboard,
+    make_task_keyboard_with_back, make_yes_and_back_keyboard,
+};
 use crate::bot::{BotHandlerResult, keyboards, texts};
 use crate::domain::error::DomainError;
 use crate::domain::models::{CharacterName, TaskID, TaskType, TeamID, TeamName, UserID};
@@ -16,13 +25,9 @@ pub async fn prompt_menu(
     bot: Bot,
     msg: Message,
     dialogue: BotDialogue,
-    has_team: bool,
+    user: &UserDTO,
 ) -> BotHandlerResult {
-    let markup = if has_team {
-        make_menu_keyboard_with_team()
-    } else {
-        make_menu_keyboard_without_team()
-    };
+    let markup = make_menu_keyboard(user);
     bot.send_message(msg.chat.id, texts::MENU_TEXT)
         .reply_markup(markup)
         .parse_mode(ParseMode::Html)
@@ -36,6 +41,7 @@ async fn receive_menu_option(
     me: Me,
     msg: Message,
     dialogue: BotDialogue,
+    get_user: GetUser,
     get_user_team: GetUserTeam,
     get_team_with_members: GetTeamWithMembers,
     get_profile: GetProfile,
@@ -48,9 +54,9 @@ async fn receive_menu_option(
         Some(text) => match text {
             keyboards::BTN_PROFILE => {
                 let profile = get_profile.profile(user_id).await?;
-                let has_team = profile.team_name.is_some();
-                send_profile(&bot, &msg, profile).await?;
-                prompt_menu(bot, msg, dialogue, has_team).await?;
+                send_profile(&bot, &msg, &profile).await?;
+                let user = profile.into();
+                prompt_menu(bot, msg, dialogue, &user).await?;
             }
             keyboards::BTN_JOIN_TEAM => prompt_team_code(bot, msg, dialogue).await?,
             keyboards::BTN_CREATE_TEAM => prompt_team_name(bot, msg, dialogue).await?,
@@ -58,7 +64,8 @@ async fn receive_menu_option(
                 if let Some(team) = get_user_team.user_team(user_id).await? {
                     let team = get_team_with_members.team_with_members(team.id).await?;
                     send_my_team(&bot, &me, &msg, team).await?;
-                    prompt_menu(bot, msg, dialogue, true).await?;
+                    let user = get_user.user(user_id).await?;
+                    prompt_menu(bot, msg, dialogue, &user).await?;
                 }
             }
             keyboards::BTN_EXIT_TEAM => prompt_exit_approval(bot, msg, dialogue).await?,
@@ -74,10 +81,14 @@ async fn receive_menu_option(
                 let names = get_character_names.characters().await?;
                 prompt_character_name(bot, msg, dialogue, &names).await?
             }
+            keyboards::BTN_TO_SOLO_MODE => prompt_solo_mode_approval(bot, msg, dialogue).await?,
+            keyboards::BTN_TO_WANT_TEAM_MODE => {
+                prompt_team_mode_approval(bot, msg, dialogue).await?
+            }
             _ => {
                 send_unknown_menu_option(&bot, &msg).await?;
-                let has_team = get_user_team.user_team(user_id).await?.is_some();
-                prompt_menu(bot, msg, dialogue, has_team).await?
+                let user = get_user.user(user_id).await?;
+                prompt_menu(bot, msg, dialogue, &user).await?
             }
         },
     }
@@ -93,6 +104,7 @@ async fn send_unknown_menu_option(bot: &Bot, msg: &Message) -> BotHandlerResult 
 
 async fn prompt_team_code(bot: Bot, msg: Message, dialogue: BotDialogue) -> BotHandlerResult {
     bot.send_message(msg.chat.id, texts::PROMPT_TEAM_CODE)
+        .reply_markup(make_back_keyboard())
         .parse_mode(ParseMode::Html)
         .await?;
     dialogue.update(BotState::TeamCode).await?;
@@ -101,6 +113,7 @@ async fn prompt_team_code(bot: Bot, msg: Message, dialogue: BotDialogue) -> BotH
 
 async fn prompt_team_name(bot: Bot, msg: Message, dialogue: BotDialogue) -> BotHandlerResult {
     bot.send_message(msg.chat.id, texts::PROMPT_TEAM_NAME)
+        .reply_markup(make_back_keyboard())
         .parse_mode(ParseMode::Html)
         .await?;
     dialogue.update(BotState::TeamName).await?;
@@ -120,7 +133,7 @@ async fn send_my_team(
     Ok(())
 }
 
-async fn send_profile(bot: &Bot, msg: &Message, profile: Profile) -> BotHandlerResult {
+async fn send_profile(bot: &Bot, msg: &Message, profile: &Profile) -> BotHandlerResult {
     bot.send_message(msg.chat.id, texts::profile(profile))
         .parse_mode(ParseMode::Html)
         .await?;
@@ -140,26 +153,34 @@ async fn receive_team_code(
     bot: Bot,
     msg: Message,
     dialogue: BotDialogue,
+    get_user: GetUser,
     join_team: JoinTeam,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
+        Some(keyboards::BTN_BACK) => {
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await?;
+        }
         Some(text) => match TeamID::try_from(text.to_string()) {
             Err(_) => send_invalid_team_code(&bot, &msg).await?,
             Ok(team_id) => match join_team.join_team(user_id, team_id).await {
                 Err(AppError::TeamNotFound(_)) => {
+                    let user = get_user.user(user_id).await?;
                     send_team_not_found(&bot, &msg).await?;
-                    prompt_menu(bot, msg, dialogue, false).await?;
+                    prompt_menu(bot, msg, dialogue, &user).await?;
                 }
                 Err(AppError::DomainError(DomainError::TeamIsFull(_))) => {
+                    let user = get_user.user(user_id).await?;
                     send_team_is_full(&bot, &msg).await?;
-                    prompt_menu(bot, msg, dialogue, false).await?;
+                    prompt_menu(bot, msg, dialogue, &user).await?;
                 }
                 Err(err) => return Err(err),
                 Ok(team) => {
+                    let user = get_user.user(user_id).await?;
                     send_joining_team_successful(&bot, &msg, team.name).await?;
-                    prompt_menu(bot, msg, dialogue, true).await?;
+                    prompt_menu(bot, msg, dialogue, &user).await?;
                 }
             },
         },
@@ -212,16 +233,22 @@ async fn receive_team_name(
     msg: Message,
     dialogue: BotDialogue,
     create_team: CreateTeam,
+    get_user: GetUser,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
+        Some(keyboards::BTN_BACK) => {
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await?;
+        }
         Some(text) => match TeamName::new(text.to_string()) {
             Err(_) => send_team_name_is_invalid(&bot, &msg).await?,
             Ok(team_name) => {
                 let team = create_team.create_team(team_name, user_id).await?;
                 send_team_successful_created(&bot, &me, &msg, team).await?;
-                prompt_menu(bot, msg, dialogue, true).await?;
+                let user = get_user.user(user_id).await?;
+                prompt_menu(bot, msg, dialogue, &user).await?;
             }
         },
     }
@@ -257,15 +284,21 @@ async fn receive_exit_approval(
     msg: Message,
     dialogue: BotDialogue,
     exit_team: ExitTeam,
+    get_user: GetUser,
 ) -> BotHandlerResult {
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
-        Some(keyboards::BTN_BACK) => prompt_menu(bot, msg, dialogue, true).await?,
+        Some(keyboards::BTN_BACK) => {
+            let user_id = UserID::new(msg.chat.id.0);
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await?
+        }
         Some(keyboards::BTN_YES) => {
             let user_id = UserID::new(msg.chat.id.0);
             exit_team.exit(user_id).await?;
             send_successfully_exited_team(&bot, &msg).await?;
-            prompt_menu(bot, msg, dialogue, false).await?;
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await?;
         }
         Some(_) => {
             send_use_keyboard(&bot, &msg).await?;
@@ -317,14 +350,14 @@ async fn receive_rebus(
     get_tasks: GetUserTasks,
     get_user_task: GetUserTask,
     get_media: GetMedia,
-    get_user_team: GetUserTeam,
+    get_user: GetUser,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
         Some(keyboards::BTN_BACK) => {
-            let has_team = get_user_team.user_team(user_id).await?.is_some();
-            prompt_menu(bot, msg, dialogue, has_team).await?;
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await?;
         }
         Some(text) => match text.strip_prefix("Ребус ") {
             None => send_use_keyboard(&bot, &msg).await?,
@@ -358,14 +391,14 @@ async fn receive_riddle(
     get_tasks: GetUserTasks,
     get_user_task: GetUserTask,
     get_media: GetMedia,
-    get_user_team: GetUserTeam,
+    get_user: GetUser,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
         Some(keyboards::BTN_BACK) => {
-            let has_team = get_user_team.user_team(user_id).await?.is_some();
-            prompt_menu(bot, msg, dialogue, has_team).await?;
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await?;
         }
         Some(text) => match text.strip_prefix("Загадка ") {
             None => send_use_keyboard(&bot, &msg).await?,
@@ -527,7 +560,12 @@ async fn send_task_incorrect_answer(bot: &Bot, msg: &Message) -> BotHandlerResul
     Ok(())
 }
 
-async fn prompt_character_name(bot: Bot, msg: Message, dialogue: BotDialogue, names: &[CharacterName]) -> BotHandlerResult {
+async fn prompt_character_name(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    names: &[CharacterName],
+) -> BotHandlerResult {
     bot.send_message(msg.chat.id, texts::PROMPT_CHARACTER_NAME)
         .reply_markup(make_characters_keyboard_with_back(names))
         .parse_mode(ParseMode::Html)
@@ -540,7 +578,7 @@ async fn receive_character_name(
     bot: Bot,
     msg: Message,
     dialogue: BotDialogue,
-    get_user_team: GetUserTeam,
+    get_user: GetUser,
     get_character: GetCharacter,
     get_character_names: GetCharacterNames,
 ) -> BotHandlerResult {
@@ -548,8 +586,8 @@ async fn receive_character_name(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await,
         Some(keyboards::BTN_BACK) => {
-            let has_team = get_user_team.user_team(user_id).await?.is_some();
-            prompt_menu(bot, msg, dialogue, has_team).await
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await
         }
         Some(text) => {
             let name = CharacterName::new(text.to_string())?;
@@ -565,10 +603,114 @@ async fn receive_character_name(
     }
 }
 
-async fn send_character(bot: &Bot, msg: &Message, character: CharacterDTO, names: &[CharacterName]) -> BotHandlerResult {
-    bot.send_photo(msg.chat.id, InputFile::file_id(character.image_id.clone().into()))
-        .caption(texts::character(character))
-        .reply_markup(make_characters_keyboard_with_back(names))
+async fn send_character(
+    bot: &Bot,
+    msg: &Message,
+    character: CharacterDTO,
+    names: &[CharacterName],
+) -> BotHandlerResult {
+    bot.send_photo(
+        msg.chat.id,
+        InputFile::file_id(character.image_id.clone().into()),
+    )
+    .caption(texts::character(character))
+    .reply_markup(make_characters_keyboard_with_back(names))
+    .parse_mode(ParseMode::Html)
+    .await?;
+    Ok(())
+}
+
+async fn prompt_solo_mode_approval(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::PROMPT_SOLO_MODE_APPROVAL)
+        .reply_markup(make_yes_and_back_keyboard())
+        .parse_mode(ParseMode::Html)
+        .await?;
+    dialogue.update(BotState::SoloModeApproval).await?;
+    Ok(())
+}
+
+async fn receive_solo_mode_approval(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    get_user: GetUser,
+    switch_to_solo_mode: SwitchToSoloMode,
+) -> BotHandlerResult {
+    let user_id = UserID::new(msg.chat.id.0);
+    match msg.text() {
+        None => send_enter_message(&bot, &msg).await,
+        Some(keyboards::BTN_BACK) => {
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await
+        }
+        Some(keyboards::BTN_YES) => {
+            switch_to_solo_mode.switch_to_solo_mode(user_id).await?;
+            send_solo_mode_enabled(&bot, &msg).await?;
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await
+        }
+        Some(_) => {
+            send_use_keyboard(&bot, &msg).await?;
+            prompt_exit_approval(bot, msg, dialogue).await
+        }
+    }
+}
+
+async fn send_solo_mode_enabled(bot: &Bot, msg: &Message) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::SOLO_MODE_ENABLED)
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
+}
+
+async fn prompt_team_mode_approval(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::PROMPT_TEAM_MODE_APPROVAL)
+        .reply_markup(make_yes_and_back_keyboard())
+        .parse_mode(ParseMode::Html)
+        .await?;
+    dialogue.update(BotState::TeamModeApproval).await?;
+    Ok(())
+}
+
+async fn receive_team_mode_approval(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    get_user: GetUser,
+    switch_to_team_mode: SwitchToWantTeamMode,
+) -> BotHandlerResult {
+    let user_id = UserID::new(msg.chat.id.0);
+    match msg.text() {
+        None => send_enter_message(&bot, &msg).await,
+        Some(keyboards::BTN_BACK) => {
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await
+        }
+        Some(keyboards::BTN_YES) => {
+            switch_to_team_mode
+                .switch_to_want_team_mode(user_id)
+                .await?;
+            send_team_mode_enabled(&bot, &msg).await?;
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await
+        }
+        Some(_) => {
+            send_use_keyboard(&bot, &msg).await?;
+            prompt_exit_approval(bot, msg, dialogue).await
+        }
+    }
+}
+
+async fn send_team_mode_enabled(bot: &Bot, msg: &Message) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::TEAM_MODE_ENABLED)
         .parse_mode(ParseMode::Html)
         .await?;
     Ok(())
@@ -587,4 +729,6 @@ pub fn menu_scheme() -> UpdateHandler<AppError> {
         .branch(case![BotState::Riddle].endpoint(receive_riddle))
         .branch(case![BotState::RiddleAnswer(task_id)].endpoint(receive_riddle_answer))
         .branch(case![BotState::CharacterName].endpoint(receive_character_name))
+        .branch(case![BotState::SoloModeApproval].endpoint(receive_solo_mode_approval))
+        .branch(case![BotState::TeamModeApproval].endpoint(receive_team_mode_approval))
 }

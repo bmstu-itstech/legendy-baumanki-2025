@@ -55,7 +55,6 @@ impl CorrectAnswer {
     }
 }
 
-
 pub type LevenshteinDistance = usize;
 
 #[derive(Debug, Clone)]

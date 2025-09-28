@@ -13,7 +13,7 @@ impl GetCharacterNames {
     pub fn new(provider: Arc<dyn CharactersProvider>) -> Self {
         GetCharacterNames { provider }
     }
-    
+
     pub async fn characters(&self) -> Result<Vec<CharacterName>, AppError> {
         let characters = self.provider.characters().await?;
         Ok(characters.into_iter().map(|c| c.name().clone()).collect())

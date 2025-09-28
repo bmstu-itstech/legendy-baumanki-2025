@@ -1,7 +1,7 @@
 use teloxide::types::{KeyboardButton, KeyboardMarkup};
 
-use crate::app::usecases::dto::UserTaskDTO;
-use crate::domain::models::{CharacterName, TaskType};
+use crate::app::usecases::dto::{UserDTO, UserTaskDTO};
+use crate::domain::models::{CharacterName, ParticipationMode, TaskType};
 
 type StaticStr = &'static str;
 
@@ -42,42 +42,38 @@ pub const BTN_PROFILE: StaticStr = "Профиль";
 pub const BTN_REBUSES: StaticStr = "Ребусы";
 pub const BTN_RIDDLES: StaticStr = "Загадки";
 pub const BTN_CHARACTERS: StaticStr = "Личности";
+pub const BTN_TO_SOLO_MODE: StaticStr = "Перейти в соло-режим";
+pub const BTN_TO_WANT_TEAM_MODE: StaticStr = "Вернуться в командный режим";
 
-pub fn make_menu_keyboard_without_team() -> KeyboardMarkup {
-    let buttons = vec![
-        vec![KeyboardButton::new(BTN_PROFILE)],
-        vec![
-            KeyboardButton::new(BTN_JOIN_TEAM),
-            KeyboardButton::new(BTN_CREATE_TEAM),
-        ],
-        vec![
-            KeyboardButton::new(BTN_REBUSES),
-            KeyboardButton::new(BTN_RIDDLES),
-        ],
-        vec![
-            KeyboardButton::new(BTN_CHARACTERS),
-        ]
-    ];
-    KeyboardMarkup::new(buttons)
-        .resize_keyboard()
-        .one_time_keyboard()
-}
+pub fn make_menu_keyboard(user: &UserDTO) -> KeyboardMarkup {
+    let mut buttons = Vec::new();
 
-pub fn make_menu_keyboard_with_team() -> KeyboardMarkup {
-    let buttons = vec![
-        vec![KeyboardButton::new(BTN_PROFILE)],
-        vec![
-            KeyboardButton::new(BTN_MY_TEAM),
-            KeyboardButton::new(BTN_EXIT_TEAM),
-        ],
-        vec![
-            KeyboardButton::new(BTN_REBUSES),
-            KeyboardButton::new(BTN_RIDDLES),
-        ],
-        vec![
-            KeyboardButton::new(BTN_CHARACTERS),
-        ]
-    ];
+    buttons.push(vec![KeyboardButton::new(BTN_PROFILE)]);
+    match user.mode {
+        ParticipationMode::Solo => {
+            buttons.push(vec![KeyboardButton::new(BTN_TO_WANT_TEAM_MODE)]);
+        }
+        ParticipationMode::WantTeam => {
+            buttons.push(vec![
+                KeyboardButton::new(BTN_CREATE_TEAM),
+                KeyboardButton::new(BTN_JOIN_TEAM),
+            ]);
+            buttons.push(vec![KeyboardButton::new(BTN_TO_SOLO_MODE)]);
+        }
+        ParticipationMode::Team(_) => {
+            buttons.push(vec![
+                KeyboardButton::new(BTN_MY_TEAM),
+                KeyboardButton::new(BTN_EXIT_TEAM),
+            ]);
+        }
+    }
+
+    buttons.push(vec![
+        KeyboardButton::new(BTN_REBUSES),
+        KeyboardButton::new(BTN_RIDDLES),
+    ]);
+    buttons.push(vec![KeyboardButton::new(BTN_CHARACTERS)]);
+
     KeyboardMarkup::new(buttons)
         .resize_keyboard()
         .one_time_keyboard()
