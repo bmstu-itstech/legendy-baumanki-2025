@@ -1,7 +1,8 @@
 use crate::app::usecases::{
     AnswerTask, CheckAdmin, CheckRegistered, CreateTeam, ExitTeam, GetCharacter, GetCharacterNames,
     GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUser, GetUserTask, GetUserTasks,
-    GetUserTeam, JoinTeam, RegisterUser, SwitchToSoloMode, SwitchToWantTeamMode, UploadMedia,
+    GetUserTeam, GiveFeedback, JoinTeam, RegisterUser, SwitchToSoloMode, SwitchToWantTeamMode,
+    UploadMedia,
 };
 
 pub struct App {
@@ -20,6 +21,7 @@ pub struct App {
     pub get_user_tasks: GetUserTasks,
     pub get_user_task: GetUserTask,
     pub get_user_team: GetUserTeam,
+    pub give_feedback: GiveFeedback,
     pub join_team: JoinTeam,
     pub register_user: RegisterUser,
     pub switch_to_want_team_mode: SwitchToWantTeamMode,

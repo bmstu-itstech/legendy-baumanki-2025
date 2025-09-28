@@ -27,6 +27,7 @@ pub enum BotState {
     CharacterName,
     SoloModeApproval,
     TeamModeApproval,
+    Feedback,
 
     // Admin
     Media(MediaID),

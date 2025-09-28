@@ -36,6 +36,7 @@ impl BotDispatcher {
                 app.get_user_tasks,
                 app.get_user_task,
                 app.get_user_team,
+                app.give_feedback,
                 app.join_team,
                 app.register_user,
                 app.switch_to_solo_mode,

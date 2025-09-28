@@ -6,16 +6,16 @@ use tokio_postgres::{Row, Transaction};
 
 use crate::app::error::AppError;
 use crate::app::ports::{
-    CharactersProvider, IsAdminProvider, IsRegisteredUserProvider, MediaProvider, MediaRepository,
-    TaskProvider, TasksProvider, TeamByMemberProvider, TeamProvider, TeamRepository, UserProvider,
-    UserRepository,
+    CharactersProvider, FeedbackRepository, IsAdminProvider, IsRegisteredUserProvider,
+    MediaProvider, MediaRepository, TaskProvider, TasksProvider, TeamByMemberProvider,
+    TeamProvider, TeamRepository, UserProvider, UserRepository,
 };
 use crate::domain::models::{
     Answer, AnswerID, AnswerText, Character, CharacterFact, CharacterID, CharacterLegacy,
-    CharacterName, CharacterQuote, CorrectAnswer, FileID, FullName, GroupName, LevenshteinDistance,
-    Media, MediaID, MediaType as DomainMediaType, ParticipationMode as DomainParticipationMode,
-    Points, SerialNumber, Task, TaskID, TaskText, TaskType as DomainTaskType, Team, TeamID,
-    TeamName, User, UserID, Username,
+    CharacterName, CharacterQuote, CorrectAnswer, Feedback, FileID, FullName, GroupName,
+    LevenshteinDistance, Media, MediaID, MediaType as DomainMediaType,
+    ParticipationMode as DomainParticipationMode, Points, SerialNumber, Task, TaskID, TaskText,
+    TaskType as DomainTaskType, Team, TeamID, TeamName, User, UserID, Username,
 };
 use crate::{with_client, with_transaction};
 
@@ -936,6 +936,29 @@ impl CharactersProvider for PostgresRepository {
             } else {
                 Ok(None)
             }
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl FeedbackRepository for PostgresRepository {
+    async fn save_feedback(&self, feedback: Feedback) -> Result<(), AppError> {
+        with_client!(self.pool, async |client: &Client| {
+            client
+                .execute(
+                    r#"
+                INSERT INTO feedbacks (
+                    author_id,
+                    text
+                )
+                VALUES
+                    ($1, $2)
+                "#,
+                    &[&feedback.author_id().as_i64(), &feedback.text().as_str()],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+            Ok(())
         })
     }
 }

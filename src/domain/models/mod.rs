@@ -1,5 +1,6 @@
 mod answer;
 mod character;
+mod feedback;
 mod media;
 mod not_empty_string;
 mod participation_mode;
@@ -11,6 +12,7 @@ mod user;
 
 pub use answer::*;
 pub use character::*;
+pub use feedback::*;
 pub use media::*;
 pub use participation_mode::*;
 pub use points::*;

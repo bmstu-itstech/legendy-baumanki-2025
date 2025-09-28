@@ -44,6 +44,7 @@ pub const BTN_RIDDLES: StaticStr = "Загадки";
 pub const BTN_CHARACTERS: StaticStr = "Личности";
 pub const BTN_TO_SOLO_MODE: StaticStr = "Перейти в соло-режим";
 pub const BTN_TO_WANT_TEAM_MODE: StaticStr = "Вернуться в командный режим";
+pub const BTN_GIVE_FEEDBACK: StaticStr = "Комментарий";
 
 pub fn make_menu_keyboard(user: &UserDTO) -> KeyboardMarkup {
     let mut buttons = Vec::new();
@@ -73,6 +74,7 @@ pub fn make_menu_keyboard(user: &UserDTO) -> KeyboardMarkup {
         KeyboardButton::new(BTN_RIDDLES),
     ]);
     buttons.push(vec![KeyboardButton::new(BTN_CHARACTERS)]);
+    buttons.push(vec![KeyboardButton::new(BTN_GIVE_FEEDBACK)]);
 
     KeyboardMarkup::new(buttons)
         .resize_keyboard()

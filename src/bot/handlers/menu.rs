@@ -8,8 +8,8 @@ use crate::app::usecases::dto::{
 };
 use crate::app::usecases::{
     AnswerTask, CreateTeam, ExitTeam, GetCharacter, GetCharacterNames, GetMedia, GetProfile,
-    GetTask, GetTeamWithMembers, GetUser, GetUserTask, GetUserTasks, GetUserTeam, JoinTeam,
-    SwitchToSoloMode, SwitchToWantTeamMode,
+    GetTask, GetTeamWithMembers, GetUser, GetUserTask, GetUserTasks, GetUserTeam, GiveFeedback,
+    JoinTeam, SwitchToSoloMode, SwitchToWantTeamMode,
 };
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::shared::{send_enter_message, send_use_keyboard};
@@ -19,7 +19,9 @@ use crate::bot::keyboards::{
 };
 use crate::bot::{BotHandlerResult, keyboards, texts};
 use crate::domain::error::DomainError;
-use crate::domain::models::{CharacterName, TaskID, TaskType, TeamID, TeamName, UserID};
+use crate::domain::models::{
+    CharacterName, FeedbackText, TaskID, TaskType, TeamID, TeamName, UserID,
+};
 
 pub async fn prompt_menu(
     bot: Bot,
@@ -85,6 +87,7 @@ async fn receive_menu_option(
             keyboards::BTN_TO_WANT_TEAM_MODE => {
                 prompt_team_mode_approval(bot, msg, dialogue).await?
             }
+            keyboards::BTN_GIVE_FEEDBACK => prompt_feedback(bot, msg, dialogue).await?,
             _ => {
                 send_unknown_menu_option(&bot, &msg).await?;
                 let user = get_user.user(user_id).await?;
@@ -716,6 +719,46 @@ async fn send_team_mode_enabled(bot: &Bot, msg: &Message) -> BotHandlerResult {
     Ok(())
 }
 
+async fn prompt_feedback(bot: Bot, msg: Message, dialogue: BotDialogue) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::PROMPT_FEEDBACK)
+        .reply_markup(make_back_keyboard())
+        .parse_mode(ParseMode::Html)
+        .await?;
+    dialogue.update(BotState::Feedback).await?;
+    Ok(())
+}
+
+async fn receive_feedback(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    give_feedback: GiveFeedback,
+    get_user: GetUser,
+) -> BotHandlerResult {
+    let user_id = UserID::new(msg.chat.id.0);
+    match msg.text() {
+        None => send_enter_message(&bot, &msg).await,
+        Some(keyboards::BTN_BACK) => {
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await
+        }
+        Some(text) => {
+            let text = FeedbackText::new(text.to_string())?;
+            give_feedback.give_feedback(user_id, text).await?;
+            send_feedback_sent(&bot, &msg).await?;
+            let user = get_user.user(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &user).await
+        }
+    }
+}
+
+async fn send_feedback_sent(bot: &Bot, msg: &Message) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::FEEDBACK_SENT)
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
+}
+
 pub fn menu_scheme() -> UpdateHandler<AppError> {
     use dptree::case;
 
@@ -731,4 +774,5 @@ pub fn menu_scheme() -> UpdateHandler<AppError> {
         .branch(case![BotState::CharacterName].endpoint(receive_character_name))
         .branch(case![BotState::SoloModeApproval].endpoint(receive_solo_mode_approval))
         .branch(case![BotState::TeamModeApproval].endpoint(receive_team_mode_approval))
+        .branch(case![BotState::Feedback].endpoint(receive_feedback))
 }

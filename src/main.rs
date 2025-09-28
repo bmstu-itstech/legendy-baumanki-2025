@@ -7,7 +7,8 @@ use crate::app::usecases::app::App;
 use crate::app::usecases::{
     AnswerTask, CheckAdmin, CheckRegistered, CreateTeam, ExitTeam, GetCharacter, GetCharacterNames,
     GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUser, GetUserTask, GetUserTasks,
-    GetUserTeam, JoinTeam, RegisterUser, SwitchToSoloMode, SwitchToWantTeamMode, UploadMedia,
+    GetUserTeam, GiveFeedback, JoinTeam, RegisterUser, SwitchToSoloMode, SwitchToWantTeamMode,
+    UploadMedia,
 };
 use crate::bot::dispatcher::BotDispatcher;
 use crate::infra::postgres::PostgresRepository;
@@ -49,6 +50,7 @@ async fn main() {
         get_user_tasks: GetUserTasks::new(repos.clone(), repos.clone()),
         get_user_task: GetUserTask::new(repos.clone(), repos.clone()),
         get_user_team: GetUserTeam::new(repos.clone()),
+        give_feedback: GiveFeedback::new(repos.clone()),
         join_team: JoinTeam::new(repos.clone(), repos.clone()),
         register_user: RegisterUser::new(repos.clone()),
         switch_to_solo_mode: SwitchToSoloMode::new(repos.clone()),
