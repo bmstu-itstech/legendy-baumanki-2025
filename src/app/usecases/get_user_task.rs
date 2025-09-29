@@ -19,7 +19,7 @@ impl GetUserTask {
         }
     }
 
-    pub async fn user_task(
+    pub async fn execute(
         &self,
         user_id: UserID,
         task_id: TaskID,

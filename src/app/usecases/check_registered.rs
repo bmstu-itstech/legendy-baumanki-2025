@@ -14,7 +14,7 @@ impl CheckRegistered {
         Self { provider }
     }
 
-    pub async fn is_registered(&self, user_id: UserID) -> Result<bool, AppError> {
+    pub async fn execute(&self, user_id: UserID) -> Result<bool, AppError> {
         self.provider.is_registered(user_id).await
     }
 }

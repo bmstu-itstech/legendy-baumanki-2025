@@ -43,7 +43,7 @@ async fn handle_start_command(
     get_user: GetUser,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
-    let registered = check_registered.is_registered(user_id).await?;
+    let registered = check_registered.execute(user_id).await?;
     let team_id_opt = if let BotCommand::Start(code) = command {
         if code == "" {
             None
@@ -67,12 +67,12 @@ async fn handle_start_command(
         }
         // Зарегистрирован и нет кода команды
         (true, None) => {
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await?;
         }
         // Зарегистрирован и есть код команды
         (true, Some(team_id)) => {
-            match get_user_team.user_team(user_id).await? {
+            match get_user_team.execute(user_id).await? {
                 Some(user_team) => {
                     if user_team.id == team_id {
                         send_already_in_this_team(&bot, &msg).await?;
@@ -80,7 +80,7 @@ async fn handle_start_command(
                         send_already_in_other_team(&bot, &msg).await?;
                     }
                 }
-                None => match join_team.join_team(user_id, team_id).await {
+                None => match join_team.execute(user_id, team_id).await {
                     Err(AppError::DomainError(DomainError::TeamIsFull(_))) => {
                         send_team_is_full(&bot, &msg).await?;
                     }
@@ -91,7 +91,7 @@ async fn handle_start_command(
                     Ok(team) => send_joining_team_successful(&bot, &msg, team.name).await?,
                 },
             }
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await?;
         }
     }
@@ -100,10 +100,10 @@ async fn handle_start_command(
 
 async fn send_greeting_message(bot: &Bot, msg: &Message, get_media: GetMedia) -> BotHandlerResult {
     let rules_1 = get_media
-        .media(MediaID::new(RULES_IMAGE_1.to_string()).unwrap())
+        .execute(MediaID::new(RULES_IMAGE_1.to_string()).unwrap())
         .await?;
     let rules_2 = get_media
-        .media(MediaID::new(RULES_IMAGE_2.to_string()).unwrap())
+        .execute(MediaID::new(RULES_IMAGE_2.to_string()).unwrap())
         .await?;
     log::debug!("{}", rules_1.file_id().as_str());
     let media_group = vec![
@@ -145,7 +145,7 @@ async fn handle_upload_command(
     check_admin: CheckAdmin,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
-    if !check_admin.is_admin(user_id).await? {
+    if !check_admin.execute(user_id).await? {
         send_permission_denied(&bot, &msg).await?;
     } else if let BotCommand::Upload(key) = command {
         match MediaID::new(key) {
@@ -188,8 +188,8 @@ async fn receive_media(
         let photo = photos.first().unwrap();
         let file_id = FileID::new(photo.file.id.0.clone())?;
         let media = Media::image(media_id.clone(), file_id.clone());
-        upload_media.upload_media(media).await?;
-        let media = get_media.media(media_id.clone()).await?;
+        upload_media.execute(media).await?;
+        let media = get_media.execute(media_id.clone()).await?;
         send_media_with_caption(
             &bot,
             &msg,
@@ -201,8 +201,8 @@ async fn receive_media(
     } else if let Some(video_note) = msg.video_note() {
         let file_id = FileID::new(video_note.file.id.0.clone())?;
         let media = Media::video_note(media_id.clone(), file_id.clone());
-        upload_media.upload_media(media).await?;
-        let media = get_media.media(media_id.clone()).await?;
+        upload_media.execute(media).await?;
+        let media = get_media.execute(media_id.clone()).await?;
         send_media_with_caption(
             &bot,
             &msg,

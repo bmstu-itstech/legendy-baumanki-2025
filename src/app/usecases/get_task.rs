@@ -15,7 +15,7 @@ impl GetTask {
         Self { provider }
     }
 
-    pub async fn task(&self, id: TaskID) -> Result<TaskDTO, AppError> {
+    pub async fn execute(&self, id: TaskID) -> Result<TaskDTO, AppError> {
         self.provider.task(id).await.map(Into::into)
     }
 }

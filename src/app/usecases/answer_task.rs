@@ -22,7 +22,7 @@ impl AnswerTask {
         }
     }
 
-    pub async fn answer(
+    pub async fn execute(
         &self,
         user_id: UserID,
         task_id: TaskID,

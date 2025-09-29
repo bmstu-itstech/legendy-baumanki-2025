@@ -15,7 +15,7 @@ impl GetUserTeam {
         Self { provider }
     }
 
-    pub async fn user_team(&self, user_id: UserID) -> Result<Option<TeamDTO>, AppError> {
+    pub async fn execute(&self, user_id: UserID) -> Result<Option<TeamDTO>, AppError> {
         match self.provider.team_by_member(user_id).await? {
             Some(team) => Ok(Some(team.into())),
             None => Ok(None),

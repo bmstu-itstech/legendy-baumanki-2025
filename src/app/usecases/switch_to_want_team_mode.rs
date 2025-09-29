@@ -14,7 +14,7 @@ impl SwitchToWantTeamMode {
         Self { user_repository }
     }
 
-    pub async fn switch_to_want_team_mode(&self, id: UserID) -> Result<(), AppError> {
+    pub async fn execute(&self, id: UserID) -> Result<(), AppError> {
         let mut user = self.user_repository.user(id).await?;
         user.switch_to_want_team_mode();
         self.user_repository.save_user(user).await

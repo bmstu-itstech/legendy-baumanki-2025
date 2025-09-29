@@ -14,7 +14,7 @@ impl RegisterUser {
         Self { repos }
     }
 
-    pub async fn register(
+    pub async fn execute(
         &self,
         id: UserID,
         username: Option<Username>,

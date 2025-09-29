@@ -16,7 +16,7 @@ impl GiveFeedback {
         }
     }
 
-    pub async fn give_feedback(
+    pub async fn execute(
         &self,
         author_id: UserID,
         text: FeedbackText,

@@ -25,7 +25,7 @@ impl ExitTeam {
         }
     }
 
-    pub async fn exit(&self, user_id: UserID) -> Result<(), AppError> {
+    pub async fn execute(&self, user_id: UserID) -> Result<(), AppError> {
         let mut user = self.user_repos.user(user_id).await?;
         match self.team_by_member_provider.team_by_member(user_id).await? {
             None => Err(AppError::DomainError(DomainError::UserIsNotMemberOfTeam(

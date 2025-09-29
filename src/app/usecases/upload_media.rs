@@ -14,7 +14,7 @@ impl UploadMedia {
         Self { repos }
     }
 
-    pub async fn upload_media(&self, media: Media) -> Result<(), AppError> {
+    pub async fn execute(&self, media: Media) -> Result<(), AppError> {
         self.repos.save_media(media).await
     }
 }

@@ -19,7 +19,7 @@ impl JoinTeam {
         }
     }
 
-    pub async fn join_team(&self, user_id: UserID, team_id: TeamID) -> Result<TeamDTO, AppError> {
+    pub async fn execute(&self, user_id: UserID, team_id: TeamID) -> Result<TeamDTO, AppError> {
         let mut team = self.team_repos.team(&team_id).await?;
         team.add_member(user_id)?;
         let mut user = self.user_repos.user(user_id).await?;

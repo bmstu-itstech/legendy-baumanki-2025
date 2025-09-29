@@ -22,7 +22,7 @@ impl GetProfile {
         }
     }
 
-    pub async fn profile(&self, user_id: UserID) -> Result<Profile, AppError> {
+    pub async fn execute(&self, user_id: UserID) -> Result<Profile, AppError> {
         let user = self.user_provider.user(user_id).await?;
         match self.team_provider.team_by_member(user_id).await? {
             Some(team) => Ok(Profile {

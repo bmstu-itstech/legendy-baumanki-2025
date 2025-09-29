@@ -14,7 +14,7 @@ impl CheckAdmin {
         Self { provider }
     }
 
-    pub async fn is_admin(&self, user_id: UserID) -> Result<bool, AppError> {
+    pub async fn execute(&self, user_id: UserID) -> Result<bool, AppError> {
         self.provider.is_admin(user_id).await
     }
 }

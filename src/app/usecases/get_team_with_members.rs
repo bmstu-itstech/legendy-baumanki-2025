@@ -19,7 +19,7 @@ impl GetTeamWithMembers {
         }
     }
 
-    pub async fn team_with_members(&self, team_id: TeamID) -> Result<TeamWithMembersDTO, AppError> {
+    pub async fn execute(&self, team_id: TeamID) -> Result<TeamWithMembersDTO, AppError> {
         let team = self.team_provider.team(&team_id).await?;
         let mut members: Vec<UserDTO> = Vec::new();
         for member_id in team.member_ids() {

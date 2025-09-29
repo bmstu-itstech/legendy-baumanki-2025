@@ -15,7 +15,7 @@ impl GetUser {
         Self { user_provider }
     }
 
-    pub async fn user(&self, id: UserID) -> Result<UserDTO, AppError> {
+    pub async fn execute(&self, id: UserID) -> Result<UserDTO, AppError> {
         let user = self.user_provider.user(id).await?;
         Ok(UserDTO::from(user))
     }

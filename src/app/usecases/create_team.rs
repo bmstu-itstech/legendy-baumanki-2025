@@ -19,7 +19,7 @@ impl CreateTeam {
         }
     }
 
-    pub async fn create_team(
+    pub async fn execute(
         &self,
         name: TeamName,
         captain_id: UserID,

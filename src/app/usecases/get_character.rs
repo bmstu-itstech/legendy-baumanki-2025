@@ -22,7 +22,7 @@ impl GetCharacter {
         }
     }
 
-    pub async fn character(&self, name: &CharacterName) -> Result<CharacterDTO, AppError> {
+    pub async fn execute(&self, name: &CharacterName) -> Result<CharacterDTO, AppError> {
         match self.characters_provider.character_by_name(name).await? {
             None => Err(AppError::CharacterNotFound(name.clone())),
             Some(character) => {

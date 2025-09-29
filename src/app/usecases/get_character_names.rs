@@ -14,7 +14,7 @@ impl GetCharacterNames {
         GetCharacterNames { provider }
     }
 
-    pub async fn characters(&self) -> Result<Vec<CharacterName>, AppError> {
+    pub async fn execute(&self) -> Result<Vec<CharacterName>, AppError> {
         let characters = self.provider.characters().await?;
         Ok(characters.into_iter().map(|c| c.name().clone()).collect())
     }

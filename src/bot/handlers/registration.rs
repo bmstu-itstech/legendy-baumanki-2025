@@ -1,3 +1,7 @@
+use teloxide::dispatching::UpdateHandler;
+use teloxide::prelude::*;
+use teloxide::types::{KeyboardRemove, ParseMode};
+
 use crate::app::error::AppError;
 use crate::app::usecases::{GetUser, JoinTeam, RegisterUser};
 use crate::bot::BotHandlerResult;
@@ -11,11 +15,6 @@ use crate::domain::models::{FullName, GroupName, TeamID, UserID, Username};
 
 use crate::bot::handlers::shared::{send_enter_message, send_internal_error};
 use crate::domain::error::DomainError;
-use teloxide::dispatching::UpdateHandler;
-use teloxide::dispatching::dialogue::serializer::Json;
-use teloxide::dispatching::dialogue::{PostgresStorage, enter};
-use teloxide::prelude::*;
-use teloxide::types::{KeyboardRemove, ParseMode};
 
 pub async fn prompt_pd_agreement(
     bot: Bot,
@@ -134,19 +133,19 @@ async fn receive_group_name(
                     let user_id = UserID::new(msg.chat.id.0);
                     let username = username_from_message(&msg);
                     register_user
-                        .register(user_id, username, full_name, group_name)
+                        .execute(user_id, username, full_name, group_name)
                         .await?;
                     send_registration_successful(&bot, &msg).await?;
                     if let Some(team_id) = team_id_opt.clone() {
-                        match join_team.join_team(user_id, team_id).await {
+                        match join_team.execute(user_id, team_id).await {
                             Err(AppError::DomainError(DomainError::TeamIsFull(_))) => {
                                 send_team_is_full(&bot, &msg).await?;
-                                let user = get_user.user(user_id).await?;
+                                let user = get_user.execute(user_id).await?;
                                 prompt_menu(bot, msg, dialogue, &user).await?;
                             }
                             Err(AppError::TeamNotFound(_)) => {
                                 send_team_not_exists(&bot, &msg).await?;
-                                let user = get_user.user(user_id).await?;
+                                let user = get_user.execute(user_id).await?;
                                 prompt_menu(bot, msg, dialogue, &user).await?;
                             }
                             Err(err) => {
@@ -156,12 +155,12 @@ async fn receive_group_name(
                             }
                             Ok(team) => {
                                 send_joining_team_successful(&bot, &msg, team.name.clone()).await?;
-                                let user = get_user.user(user_id).await?;
+                                let user = get_user.execute(user_id).await?;
                                 prompt_menu(bot, msg, dialogue, &user).await?;
                             }
                         }
                     } else {
-                        let user = get_user.user(user_id).await?;
+                        let user = get_user.execute(user_id).await?;
                         prompt_menu(bot, msg, dialogue, &user).await?;
                     }
                 }

@@ -55,7 +55,7 @@ async fn receive_menu_option(
         None => send_enter_message(&bot, &msg).await?,
         Some(text) => match text {
             keyboards::BTN_PROFILE => {
-                let profile = get_profile.profile(user_id).await?;
+                let profile = get_profile.execute(user_id).await?;
                 send_profile(&bot, &msg, &profile).await?;
                 let user = profile.into();
                 prompt_menu(bot, msg, dialogue, &user).await?;
@@ -63,24 +63,24 @@ async fn receive_menu_option(
             keyboards::BTN_JOIN_TEAM => prompt_team_code(bot, msg, dialogue).await?,
             keyboards::BTN_CREATE_TEAM => prompt_team_name(bot, msg, dialogue).await?,
             keyboards::BTN_MY_TEAM => {
-                if let Some(team) = get_user_team.user_team(user_id).await? {
-                    let team = get_team_with_members.team_with_members(team.id).await?;
+                if let Some(team) = get_user_team.execute(user_id).await? {
+                    let team = get_team_with_members.execute(team.id).await?;
                     send_my_team(&bot, &me, &msg, team).await?;
-                    let user = get_user.user(user_id).await?;
+                    let user = get_user.execute(user_id).await?;
                     prompt_menu(bot, msg, dialogue, &user).await?;
                 }
             }
             keyboards::BTN_EXIT_TEAM => prompt_exit_approval(bot, msg, dialogue).await?,
             keyboards::BTN_REBUSES => {
-                let rebuses = get_user_tasks.tasks(user_id, TaskType::Rebus).await?;
+                let rebuses = get_user_tasks.execute(user_id, TaskType::Rebus).await?;
                 prompt_rebus(bot, msg, dialogue, rebuses.as_ref()).await?
             }
             keyboards::BTN_RIDDLES => {
-                let riddles = get_user_tasks.tasks(user_id, TaskType::Riddle).await?;
+                let riddles = get_user_tasks.execute(user_id, TaskType::Riddle).await?;
                 prompt_riddle(bot, msg, dialogue, riddles.as_ref()).await?
             }
             keyboards::BTN_CHARACTERS => {
-                let names = get_character_names.characters().await?;
+                let names = get_character_names.execute().await?;
                 prompt_character_name(bot, msg, dialogue, &names).await?
             }
             keyboards::BTN_TO_SOLO_MODE => prompt_solo_mode_approval(bot, msg, dialogue).await?,
@@ -90,7 +90,7 @@ async fn receive_menu_option(
             keyboards::BTN_GIVE_FEEDBACK => prompt_feedback(bot, msg, dialogue).await?,
             _ => {
                 send_unknown_menu_option(&bot, &msg).await?;
-                let user = get_user.user(user_id).await?;
+                let user = get_user.execute(user_id).await?;
                 prompt_menu(bot, msg, dialogue, &user).await?
             }
         },
@@ -163,25 +163,25 @@ async fn receive_team_code(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
         Some(keyboards::BTN_BACK) => {
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await?;
         }
         Some(text) => match TeamID::try_from(text.to_string()) {
             Err(_) => send_invalid_team_code(&bot, &msg).await?,
-            Ok(team_id) => match join_team.join_team(user_id, team_id).await {
+            Ok(team_id) => match join_team.execute(user_id, team_id).await {
                 Err(AppError::TeamNotFound(_)) => {
-                    let user = get_user.user(user_id).await?;
+                    let user = get_user.execute(user_id).await?;
                     send_team_not_found(&bot, &msg).await?;
                     prompt_menu(bot, msg, dialogue, &user).await?;
                 }
                 Err(AppError::DomainError(DomainError::TeamIsFull(_))) => {
-                    let user = get_user.user(user_id).await?;
+                    let user = get_user.execute(user_id).await?;
                     send_team_is_full(&bot, &msg).await?;
                     prompt_menu(bot, msg, dialogue, &user).await?;
                 }
                 Err(err) => return Err(err),
                 Ok(team) => {
-                    let user = get_user.user(user_id).await?;
+                    let user = get_user.execute(user_id).await?;
                     send_joining_team_successful(&bot, &msg, team.name).await?;
                     prompt_menu(bot, msg, dialogue, &user).await?;
                 }
@@ -242,15 +242,15 @@ async fn receive_team_name(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
         Some(keyboards::BTN_BACK) => {
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await?;
         }
         Some(text) => match TeamName::new(text.to_string()) {
             Err(_) => send_team_name_is_invalid(&bot, &msg).await?,
             Ok(team_name) => {
-                let team = create_team.create_team(team_name, user_id).await?;
+                let team = create_team.execute(team_name, user_id).await?;
                 send_team_successful_created(&bot, &me, &msg, team).await?;
-                let user = get_user.user(user_id).await?;
+                let user = get_user.execute(user_id).await?;
                 prompt_menu(bot, msg, dialogue, &user).await?;
             }
         },
@@ -293,14 +293,14 @@ async fn receive_exit_approval(
         None => send_enter_message(&bot, &msg).await?,
         Some(keyboards::BTN_BACK) => {
             let user_id = UserID::new(msg.chat.id.0);
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await?
         }
         Some(keyboards::BTN_YES) => {
             let user_id = UserID::new(msg.chat.id.0);
-            exit_team.exit(user_id).await?;
+            exit_team.execute(user_id).await?;
             send_successfully_exited_team(&bot, &msg).await?;
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await?;
         }
         Some(_) => {
@@ -359,7 +359,7 @@ async fn receive_rebus(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
         Some(keyboards::BTN_BACK) => {
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await?;
         }
         Some(text) => match text.strip_prefix("Ребус ") {
@@ -367,12 +367,12 @@ async fn receive_rebus(
             Some(name) => match name.parse::<u32>() {
                 Err(_) => send_use_keyboard(&bot, &msg).await?,
                 Ok(idx) => {
-                    let tasks = get_tasks.tasks(user_id, TaskType::Rebus).await?;
+                    let tasks = get_tasks.execute(user_id, TaskType::Rebus).await?;
                     match tasks.iter().find(|&t| t.index == idx) {
                         None => send_use_keyboard(&bot, &msg).await?,
                         Some(user_task) => {
                             let task_id = user_task.id.clone();
-                            let task = get_user_task.user_task(user_id, task_id).await?;
+                            let task = get_user_task.execute(user_id, task_id).await?;
                             if task.solved {
                                 send_rebus_already_solved(&bot, &msg, &tasks).await?;
                             } else {
@@ -400,7 +400,7 @@ async fn receive_riddle(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
         Some(keyboards::BTN_BACK) => {
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await?;
         }
         Some(text) => match text.strip_prefix("Загадка ") {
@@ -408,12 +408,12 @@ async fn receive_riddle(
             Some(name) => match name.parse::<u32>() {
                 Err(_) => send_use_keyboard(&bot, &msg).await?,
                 Ok(idx) => {
-                    let tasks = get_tasks.tasks(user_id, TaskType::Riddle).await?;
+                    let tasks = get_tasks.execute(user_id, TaskType::Riddle).await?;
                     match tasks.iter().find(|&t| t.index == idx) {
                         None => send_use_keyboard(&bot, &msg).await?,
                         Some(user_task) => {
                             let task_id = user_task.id.clone();
-                            let task = get_user_task.user_task(user_id, task_id).await?;
+                            let task = get_user_task.execute(user_id, task_id).await?;
                             if task.solved {
                                 send_riddle_already_solved(&bot, &msg, &tasks).await?;
                             } else {
@@ -459,7 +459,7 @@ async fn prompt_rebus_answer(
     get_media: GetMedia,
     task: UserTaskDTO,
 ) -> BotHandlerResult {
-    let media = get_media.media(task.media_id).await?;
+    let media = get_media.execute(task.media_id).await?;
     bot.send_photo(msg.chat.id, media.into())
         .reply_markup(make_back_keyboard())
         .parse_mode(ParseMode::Html)
@@ -475,7 +475,7 @@ async fn prompt_riddle_answer(
     get_media: GetMedia,
     task: UserTaskDTO,
 ) -> BotHandlerResult {
-    let media = get_media.media(task.media_id).await?;
+    let media = get_media.execute(task.media_id).await?;
     bot.send_photo(msg.chat.id, media.into())
         .reply_markup(make_back_keyboard())
         .parse_mode(ParseMode::Html)
@@ -497,16 +497,16 @@ async fn receive_rebus_answer(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
         Some(keyboards::BTN_BACK) => {
-            let tasks = get_user_tasks.tasks(user_id, TaskType::Rebus).await?;
+            let tasks = get_user_tasks.execute(user_id, TaskType::Rebus).await?;
             prompt_rebus(bot, msg, dialogue, &tasks).await?;
         }
         Some(text) => {
             let text = text.to_string();
-            let answer = answer_task.answer(user_id, task_id.clone(), text).await?;
+            let answer = answer_task.execute(user_id, task_id.clone(), text).await?;
             if answer.solved {
-                let task = get_task.task(task_id).await?;
+                let task = get_task.execute(task_id).await?;
                 send_task_solved(&bot, &msg, task).await?;
-                let tasks = get_user_tasks.tasks(user_id, TaskType::Rebus).await?;
+                let tasks = get_user_tasks.execute(user_id, TaskType::Rebus).await?;
                 prompt_rebus(bot, msg, dialogue, &tasks).await?;
             } else {
                 send_task_incorrect_answer(&bot, &msg).await?;
@@ -529,16 +529,16 @@ async fn receive_riddle_answer(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
         Some(keyboards::BTN_BACK) => {
-            let tasks = get_user_tasks.tasks(user_id, TaskType::Riddle).await?;
+            let tasks = get_user_tasks.execute(user_id, TaskType::Riddle).await?;
             prompt_riddle(bot, msg, dialogue, &tasks).await?;
         }
         Some(text) => {
             let text = text.to_string();
-            let answer = answer_task.answer(user_id, task_id.clone(), text).await?;
+            let answer = answer_task.execute(user_id, task_id.clone(), text).await?;
             if answer.solved {
-                let task = get_task.task(task_id).await?;
+                let task = get_task.execute(task_id).await?;
                 send_task_solved(&bot, &msg, task).await?;
-                let tasks = get_user_tasks.tasks(user_id, TaskType::Riddle).await?;
+                let tasks = get_user_tasks.execute(user_id, TaskType::Riddle).await?;
                 prompt_riddle(bot, msg, dialogue, &tasks).await?;
             } else {
                 send_task_incorrect_answer(&bot, &msg).await?;
@@ -589,16 +589,16 @@ async fn receive_character_name(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await,
         Some(keyboards::BTN_BACK) => {
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await
         }
         Some(text) => {
             let name = CharacterName::new(text.to_string())?;
-            match get_character.character(&name).await {
+            match get_character.execute(&name).await {
                 Err(AppError::CharacterNotFound(_)) => send_use_keyboard(&bot, &msg).await,
                 Err(err) => Err(err),
                 Ok(character) => {
-                    let names = get_character_names.characters().await?;
+                    let names = get_character_names.execute().await?;
                     send_character(&bot, &msg, character, &names).await
                 }
             }
@@ -647,13 +647,13 @@ async fn receive_solo_mode_approval(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await,
         Some(keyboards::BTN_BACK) => {
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await
         }
         Some(keyboards::BTN_YES) => {
-            switch_to_solo_mode.switch_to_solo_mode(user_id).await?;
+            switch_to_solo_mode.execute(user_id).await?;
             send_solo_mode_enabled(&bot, &msg).await?;
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await
         }
         Some(_) => {
@@ -694,15 +694,15 @@ async fn receive_team_mode_approval(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await,
         Some(keyboards::BTN_BACK) => {
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await
         }
         Some(keyboards::BTN_YES) => {
             switch_to_team_mode
-                .switch_to_want_team_mode(user_id)
+                .execute(user_id)
                 .await?;
             send_team_mode_enabled(&bot, &msg).await?;
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await
         }
         Some(_) => {
@@ -739,14 +739,14 @@ async fn receive_feedback(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await,
         Some(keyboards::BTN_BACK) => {
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await
         }
         Some(text) => {
             let text = FeedbackText::new(text.to_string())?;
-            give_feedback.give_feedback(user_id, text).await?;
+            give_feedback.execute(user_id, text).await?;
             send_feedback_sent(&bot, &msg).await?;
-            let user = get_user.user(user_id).await?;
+            let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await
         }
     }
