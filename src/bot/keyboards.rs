@@ -50,23 +50,10 @@ pub fn make_menu_keyboard(user: &UserDTO) -> KeyboardMarkup {
     let mut buttons = Vec::new();
 
     buttons.push(vec![KeyboardButton::new(BTN_PROFILE)]);
-    match user.mode {
-        ParticipantStatus::Solo => {
-            buttons.push(vec![KeyboardButton::new(BTN_TO_LOOKING_FOR_TEAM)]);
-        }
-        ParticipantStatus::LookingForTeam => {
-            buttons.push(vec![
-                KeyboardButton::new(BTN_CREATE_TEAM),
-                KeyboardButton::new(BTN_JOIN_TEAM),
-            ]);
-            buttons.push(vec![KeyboardButton::new(BTN_TO_SOLO_MODE)]);
-        }
-        ParticipantStatus::Team(_) => {
-            buttons.push(vec![
-                KeyboardButton::new(BTN_MY_TEAM),
-                KeyboardButton::new(BTN_EXIT_TEAM),
-            ]);
-        }
+    if matches!(user.mode, ParticipantStatus::Team(_)) {
+        buttons.push(vec![
+            KeyboardButton::new(BTN_MY_TEAM),
+        ]);
     }
 
     buttons.push(vec![

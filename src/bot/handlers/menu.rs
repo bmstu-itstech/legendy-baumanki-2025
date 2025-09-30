@@ -60,8 +60,6 @@ async fn receive_menu_option(
                 let user = profile.into();
                 prompt_menu(bot, msg, dialogue, &user).await?;
             }
-            keyboards::BTN_JOIN_TEAM => prompt_team_code(bot, msg, dialogue).await?,
-            keyboards::BTN_CREATE_TEAM => prompt_team_name(bot, msg, dialogue).await?,
             keyboards::BTN_MY_TEAM => {
                 if let Some(team) = get_user_team.execute(user_id).await? {
                     let team = get_team_with_members.execute(team.id).await?;
@@ -70,7 +68,6 @@ async fn receive_menu_option(
                     prompt_menu(bot, msg, dialogue, &user).await?;
                 }
             }
-            keyboards::BTN_EXIT_TEAM => prompt_exit_approval(bot, msg, dialogue).await?,
             keyboards::BTN_REBUSES => {
                 let rebuses = get_user_tasks.execute(user_id, TaskType::Rebus).await?;
                 prompt_rebus(bot, msg, dialogue, rebuses.as_ref()).await?
@@ -82,10 +79,6 @@ async fn receive_menu_option(
             keyboards::BTN_CHARACTERS => {
                 let names = get_character_names.execute().await?;
                 prompt_character_name(bot, msg, dialogue, &names).await?
-            }
-            keyboards::BTN_TO_SOLO_MODE => prompt_solo_mode_approval(bot, msg, dialogue).await?,
-            keyboards::BTN_TO_LOOKING_FOR_TEAM => {
-                prompt_team_mode_approval(bot, msg, dialogue).await?
             }
             keyboards::BTN_GIVE_FEEDBACK => prompt_feedback(bot, msg, dialogue).await?,
             _ => {
