@@ -57,13 +57,15 @@ async fn handle_start_command(
     match (registered, team_id_opt) {
         // Не зарегистрирован и нет кода команды
         (false, None) => {
-            send_greeting_message(&bot, &msg, get_media).await?;
-            prompt_pd_agreement(bot, msg, dialogue, None).await?;
+            //send_greeting_message(&bot, &msg, get_media).await?;
+            //prompt_pd_agreement(bot, msg, dialogue, None).await?;
+            send_registration_closed(&bot, &msg).await?;
         }
         // Не зарегистрирован и есть код команды в ссылке
         (false, Some(team_id)) => {
-            send_greeting_message(&bot, &msg, get_media).await?;
-            prompt_pd_agreement(bot, msg, dialogue, Some(team_id)).await?;
+            //send_greeting_message(&bot, &msg, get_media).await?;
+            //prompt_pd_agreement(bot, msg, dialogue, Some(team_id)).await?;
+            send_registration_closed(&bot, &msg).await?;
         }
         // Зарегистрирован и нет кода команды
         (true, None) => {
@@ -95,6 +97,13 @@ async fn handle_start_command(
             prompt_menu(bot, msg, dialogue, &user).await?;
         }
     }
+    Ok(())
+}
+
+async fn send_registration_closed(bot: &Bot, msg: &Message) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::REGISTRATION_CLOSED)
+        .parse_mode(ParseMode::Html)
+        .await?;
     Ok(())
 }
 
