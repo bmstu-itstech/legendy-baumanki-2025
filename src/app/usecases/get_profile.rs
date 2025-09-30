@@ -30,14 +30,14 @@ impl GetProfile {
                 full_name: user.full_name().clone(),
                 group_name: user.group_name().clone(),
                 team_name: Some(team.name().clone()),
-                mode: user.mode().clone(),
+                mode: user.status().clone(),
             }),
             None => Ok(Profile {
                 username: user.username().cloned(),
                 full_name: user.full_name().clone(),
                 group_name: user.group_name().clone(),
                 team_name: None,
-                mode: user.mode().clone(),
+                mode: user.status().clone(),
             }),
         }
     }

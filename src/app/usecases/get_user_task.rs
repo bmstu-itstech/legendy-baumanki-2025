@@ -19,11 +19,7 @@ impl GetUserTask {
         }
     }
 
-    pub async fn execute(
-        &self,
-        user_id: UserID,
-        task_id: TaskID,
-    ) -> Result<UserTaskDTO, AppError> {
+    pub async fn execute(&self, user_id: UserID, task_id: TaskID) -> Result<UserTaskDTO, AppError> {
         let task = self.task_provider.task(task_id).await?;
         let user = self.user_provider.user(user_id).await?;
         let solved = if let Some(answer) = user.answer(task.id()) {

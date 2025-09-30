@@ -3,8 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::domain::error::DomainError;
-use crate::domain::models::participation_mode::ParticipationMode;
-use crate::domain::models::points::Points;
+use crate::domain::models::participation_mode::ParticipantStatus;
 use crate::domain::models::{Answer, TaskID, TeamID};
 use crate::not_empty_string_impl;
 
@@ -64,11 +63,11 @@ impl GroupName {
 #[derive(Debug, Clone)]
 pub struct User {
     id: UserID,
+    status: ParticipantStatus,
     username: Option<Username>,
     full_name: FullName,
     group_name: GroupName,
     answers: HashMap<TaskID, Answer>,
-    mode: ParticipationMode,
 }
 
 impl User {
@@ -80,11 +79,11 @@ impl User {
     ) -> Self {
         Self {
             id,
+            status: ParticipantStatus::LookingForTeam, // По умолчанию считаем, что участник всё же хочет быть в команде
             username,
             full_name,
             group_name,
             answers: HashMap::new(),
-            mode: ParticipationMode::WantTeam, // По умолчанию считаем, что участник всё же хочет быть в команде
         }
     }
 
@@ -94,39 +93,63 @@ impl User {
         full_name: FullName,
         group_name: GroupName,
         answers: Vec<Answer>,
-        preferred_mode: ParticipationMode,
+        status: ParticipantStatus,
     ) -> Self {
         let answers = HashMap::from_iter(answers.into_iter().map(|a| (a.task_id().clone(), a)));
         Self {
             id,
+            status,
             username,
             full_name,
             group_name,
             answers,
-            mode: preferred_mode,
         }
-    }
-
-    pub fn total_points(&self) -> Points {
-        self.answers
-            .values()
-            .fold(Points::zero(), |sum, answer| sum + answer.points())
     }
 
     pub fn add_answer(&mut self, answer: Answer) {
         self.answers.insert(answer.task_id().clone(), answer);
     }
 
-    pub fn switch_to_solo_mode(&mut self) {
-        self.mode = ParticipationMode::Solo;
+    pub fn join_team(&mut self, team_id: TeamID) -> Result<(), DomainError> {
+        if matches!(self.status, ParticipantStatus::Team(_)) {
+            Err(DomainError::UserAlreadyInTeam(self.id, team_id))
+        } else {
+            self.status = ParticipantStatus::Team(team_id);
+            Ok(())
+        }
     }
 
-    pub fn switch_to_want_team_mode(&mut self) {
-        self.mode = ParticipationMode::WantTeam;
+    pub fn leave_team(&mut self) -> Result<(), DomainError> {
+        if !matches!(self.status, ParticipantStatus::Team(_)) {
+            Err(DomainError::UserIsNotMemberOfTeam(self.id))
+        } else {
+            self.status = ParticipantStatus::Solo;
+            Ok(())
+        }
     }
 
-    pub fn switch_to_team_mode(&mut self, team_id: TeamID) {
-        self.mode = ParticipationMode::Team(team_id);
+    pub fn switch_to_looking_for_team(&mut self) -> Result<(), DomainError> {
+        if !matches!(self.status, ParticipantStatus::Solo) {
+            Err(DomainError::UserCannotSwitchToStatus(
+                self.id,
+                ParticipantStatus::LookingForTeam,
+            ))
+        } else {
+            self.status = ParticipantStatus::LookingForTeam;
+            Ok(())
+        }
+    }
+
+    pub fn switch_to_solo_mode(&mut self) -> Result<(), DomainError> {
+        if !matches!(self.status, ParticipantStatus::LookingForTeam) {
+            Err(DomainError::UserCannotSwitchToStatus(
+                self.id,
+                ParticipantStatus::Solo,
+            ))
+        } else {
+            self.status = ParticipantStatus::Solo;
+            Ok(())
+        }
     }
 
     pub fn id(&self) -> UserID {
@@ -149,8 +172,8 @@ impl User {
         &self.answers
     }
 
-    pub fn mode(&self) -> &ParticipationMode {
-        &self.mode
+    pub fn status(&self) -> &ParticipantStatus {
+        &self.status
     }
 
     pub fn answer(&self, task_id: &TaskID) -> Option<&Answer> {

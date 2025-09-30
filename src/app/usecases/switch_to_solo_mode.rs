@@ -16,7 +16,7 @@ impl SwitchToSoloMode {
 
     pub async fn execute(&self, id: UserID) -> Result<(), AppError> {
         let mut user = self.user_repository.user(id).await?;
-        user.switch_to_solo_mode();
+        user.switch_to_solo_mode()?;
         self.user_repository.save_user(user).await
     }
 }

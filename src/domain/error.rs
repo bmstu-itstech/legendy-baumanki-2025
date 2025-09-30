@@ -1,3 +1,5 @@
+use crate::domain::models::{ParticipantStatus, TeamID, UserID};
+
 #[derive(thiserror::Error, Debug)]
 pub enum DomainError {
     #[error("invalid value: {0}")]
@@ -6,9 +8,12 @@ pub enum DomainError {
     #[error("team is full: {0}")]
     TeamIsFull(usize),
 
-    #[error("user already in team: {0}")]
-    UserAlreadyInTeam(i64),
+    #[error("user {0:?} already in team '{1:?}'")]
+    UserAlreadyInTeam(UserID, TeamID),
 
-    #[error("user {0} is not member of team")]
-    UserIsNotMemberOfTeam(i64),
+    #[error("user {0:?} can't switch to status {1:?}")]
+    UserCannotSwitchToStatus(UserID, ParticipantStatus),
+
+    #[error("user {0:?} is not member of team")]
+    UserIsNotMemberOfTeam(UserID),
 }

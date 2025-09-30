@@ -19,8 +19,8 @@ mod get_user_team;
 mod give_feedback;
 mod join_team;
 mod register_user;
+mod switch_to_looking_for_team;
 mod switch_to_solo_mode;
-mod switch_to_want_team_mode;
 mod upload_media;
 
 pub use answer_task::*;
@@ -41,6 +41,6 @@ pub use get_user_team::*;
 pub use give_feedback::*;
 pub use join_team::*;
 pub use register_user::*;
+pub use switch_to_looking_for_team::*;
 pub use switch_to_solo_mode::*;
-pub use switch_to_want_team_mode::*;
 pub use upload_media::*;

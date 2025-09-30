@@ -7,7 +7,7 @@ use crate::app::usecases::app::App;
 use crate::app::usecases::{
     AnswerTask, CheckAdmin, CheckRegistered, CreateTeam, ExitTeam, GetCharacter, GetCharacterNames,
     GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUser, GetUserTask, GetUserTasks,
-    GetUserTeam, GiveFeedback, JoinTeam, RegisterUser, SwitchToSoloMode, SwitchToWantTeamMode,
+    GetUserTeam, GiveFeedback, JoinTeam, RegisterUser, SwitchToLookingForTeam, SwitchToSoloMode,
     UploadMedia,
 };
 use crate::bot::dispatcher::BotDispatcher;
@@ -54,7 +54,7 @@ async fn main() {
         join_team: JoinTeam::new(repos.clone(), repos.clone()),
         register_user: RegisterUser::new(repos.clone()),
         switch_to_solo_mode: SwitchToSoloMode::new(repos.clone()),
-        switch_to_want_team_mode: SwitchToWantTeamMode::new(repos.clone()),
+        switch_to_want_team_mode: SwitchToLookingForTeam::new(repos.clone()),
         upload_media: UploadMedia::new(repos.clone()),
     };
 

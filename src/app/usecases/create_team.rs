@@ -19,15 +19,11 @@ impl CreateTeam {
         }
     }
 
-    pub async fn execute(
-        &self,
-        name: TeamName,
-        captain_id: UserID,
-    ) -> Result<TeamDTO, AppError> {
+    pub async fn execute(&self, name: TeamName, captain_id: UserID) -> Result<TeamDTO, AppError> {
         let team = Team::new(name, captain_id);
         let dto = team.clone().into();
         let mut user = self.user_repos.user(captain_id).await?;
-        user.switch_to_team_mode(team.id().clone());
+        user.join_team(team.id().clone())?;
         self.team_repos.save_team(team).await?;
         self.user_repos.save_user(user).await?;
         Ok(dto)

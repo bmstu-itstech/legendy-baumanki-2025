@@ -23,7 +23,7 @@ impl JoinTeam {
         let mut team = self.team_repos.team(&team_id).await?;
         team.add_member(user_id)?;
         let mut user = self.user_repos.user(user_id).await?;
-        user.switch_to_team_mode(team_id);
+        user.join_team(team_id)?;
         self.user_repos.save_user(user).await?;
         self.team_repos.save_team(team.clone()).await?;
         Ok(team.into())

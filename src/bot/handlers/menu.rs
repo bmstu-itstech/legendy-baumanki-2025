@@ -9,7 +9,7 @@ use crate::app::usecases::dto::{
 use crate::app::usecases::{
     AnswerTask, CreateTeam, ExitTeam, GetCharacter, GetCharacterNames, GetMedia, GetProfile,
     GetTask, GetTeamWithMembers, GetUser, GetUserTask, GetUserTasks, GetUserTeam, GiveFeedback,
-    JoinTeam, SwitchToSoloMode, SwitchToWantTeamMode,
+    JoinTeam, SwitchToLookingForTeam, SwitchToSoloMode,
 };
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::shared::{send_enter_message, send_use_keyboard};
@@ -84,7 +84,7 @@ async fn receive_menu_option(
                 prompt_character_name(bot, msg, dialogue, &names).await?
             }
             keyboards::BTN_TO_SOLO_MODE => prompt_solo_mode_approval(bot, msg, dialogue).await?,
-            keyboards::BTN_TO_WANT_TEAM_MODE => {
+            keyboards::BTN_TO_LOOKING_FOR_TEAM => {
                 prompt_team_mode_approval(bot, msg, dialogue).await?
             }
             keyboards::BTN_GIVE_FEEDBACK => prompt_feedback(bot, msg, dialogue).await?,
@@ -688,7 +688,7 @@ async fn receive_team_mode_approval(
     msg: Message,
     dialogue: BotDialogue,
     get_user: GetUser,
-    switch_to_team_mode: SwitchToWantTeamMode,
+    switch_to_team_mode: SwitchToLookingForTeam,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
@@ -698,9 +698,7 @@ async fn receive_team_mode_approval(
             prompt_menu(bot, msg, dialogue, &user).await
         }
         Some(keyboards::BTN_YES) => {
-            switch_to_team_mode
-                .execute(user_id)
-                .await?;
+            switch_to_team_mode.execute(user_id).await?;
             send_team_mode_enabled(&bot, &msg).await?;
             let user = get_user.execute(user_id).await?;
             prompt_menu(bot, msg, dialogue, &user).await

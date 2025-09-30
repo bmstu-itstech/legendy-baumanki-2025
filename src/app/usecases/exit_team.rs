@@ -29,7 +29,7 @@ impl ExitTeam {
         let mut user = self.user_repos.user(user_id).await?;
         match self.team_by_member_provider.team_by_member(user_id).await? {
             None => Err(AppError::DomainError(DomainError::UserIsNotMemberOfTeam(
-                user_id.as_i64(),
+                user_id,
             ))),
             Some(team) => {
                 let team_id = team.id().clone();
@@ -37,7 +37,7 @@ impl ExitTeam {
                     Some(team) => self.team_repos.save_team(team).await?,
                     None => self.team_repos.delete_team(&team_id).await?,
                 }
-                user.switch_to_want_team_mode();
+                user.leave_team()?;
                 self.user_repos.save_user(user).await
             }
         }

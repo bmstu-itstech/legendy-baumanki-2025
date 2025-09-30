@@ -16,11 +16,7 @@ impl GiveFeedback {
         }
     }
 
-    pub async fn execute(
-        &self,
-        author_id: UserID,
-        text: FeedbackText,
-    ) -> Result<(), AppError> {
+    pub async fn execute(&self, author_id: UserID, text: FeedbackText) -> Result<(), AppError> {
         let feedback = Feedback::new(author_id, text);
         self.feedback_repository.save_feedback(feedback).await
     }

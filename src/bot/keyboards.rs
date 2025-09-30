@@ -1,7 +1,7 @@
 use teloxide::types::{KeyboardButton, KeyboardMarkup};
 
 use crate::app::usecases::dto::{UserDTO, UserTaskDTO};
-use crate::domain::models::{CharacterName, ParticipationMode, TaskType};
+use crate::domain::models::{CharacterName, ParticipantStatus, TaskType};
 
 type StaticStr = &'static str;
 
@@ -43,7 +43,7 @@ pub const BTN_REBUSES: StaticStr = "Ребусы";
 pub const BTN_RIDDLES: StaticStr = "Загадки";
 pub const BTN_CHARACTERS: StaticStr = "Личности";
 pub const BTN_TO_SOLO_MODE: StaticStr = "Перейти в соло-режим";
-pub const BTN_TO_WANT_TEAM_MODE: StaticStr = "Вернуться в командный режим";
+pub const BTN_TO_LOOKING_FOR_TEAM: StaticStr = "Вернуться в командный режим";
 pub const BTN_GIVE_FEEDBACK: StaticStr = "Комментарий";
 
 pub fn make_menu_keyboard(user: &UserDTO) -> KeyboardMarkup {
@@ -51,17 +51,17 @@ pub fn make_menu_keyboard(user: &UserDTO) -> KeyboardMarkup {
 
     buttons.push(vec![KeyboardButton::new(BTN_PROFILE)]);
     match user.mode {
-        ParticipationMode::Solo => {
-            buttons.push(vec![KeyboardButton::new(BTN_TO_WANT_TEAM_MODE)]);
+        ParticipantStatus::Solo => {
+            buttons.push(vec![KeyboardButton::new(BTN_TO_LOOKING_FOR_TEAM)]);
         }
-        ParticipationMode::WantTeam => {
+        ParticipantStatus::LookingForTeam => {
             buttons.push(vec![
                 KeyboardButton::new(BTN_CREATE_TEAM),
                 KeyboardButton::new(BTN_JOIN_TEAM),
             ]);
             buttons.push(vec![KeyboardButton::new(BTN_TO_SOLO_MODE)]);
         }
-        ParticipationMode::Team(_) => {
+        ParticipantStatus::Team(_) => {
             buttons.push(vec![
                 KeyboardButton::new(BTN_MY_TEAM),
                 KeyboardButton::new(BTN_EXIT_TEAM),

@@ -1,8 +1,8 @@
 use crate::domain::models::TeamID;
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum ParticipationMode {
+pub enum ParticipantStatus {
     Solo,
-    WantTeam,
+    LookingForTeam,
     Team(TeamID),
 }

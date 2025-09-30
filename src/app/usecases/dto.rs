@@ -1,7 +1,7 @@
 use crate::domain::models::{
     Answer, AnswerID, AnswerText, CharacterFact, CharacterID, CharacterLegacy, CharacterName,
     CharacterQuote, FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType,
-    ParticipationMode, Points, SerialNumber, Task, TaskID, TaskText, TaskType, Team, TeamID,
+    ParticipantStatus, Points, SerialNumber, Task, TaskID, TaskText, TaskType, Team, TeamID,
     TeamName, User, Username,
 };
 use chrono::{DateTime, Utc};
@@ -10,7 +10,7 @@ pub struct UserDTO {
     pub username: Option<Username>,
     pub full_name: FullName,
     pub group_name: GroupName,
-    pub mode: ParticipationMode,
+    pub mode: ParticipantStatus,
 }
 
 impl From<User> for UserDTO {
@@ -19,7 +19,7 @@ impl From<User> for UserDTO {
             username: u.username().cloned(),
             full_name: u.full_name().clone(),
             group_name: u.group_name().clone(),
-            mode: u.mode().clone(),
+            mode: u.status().clone(),
         }
     }
 }
@@ -49,7 +49,7 @@ pub struct Profile {
     pub full_name: FullName,
     pub group_name: GroupName,
     pub team_name: Option<TeamName>,
-    pub mode: ParticipationMode,
+    pub mode: ParticipantStatus,
 }
 
 impl Into<UserDTO> for Profile {

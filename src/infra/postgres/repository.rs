@@ -14,7 +14,7 @@ use crate::domain::models::{
     Answer, AnswerID, AnswerText, Character, CharacterFact, CharacterID, CharacterLegacy,
     CharacterName, CharacterQuote, CorrectAnswer, Feedback, FileID, FullName, GroupName,
     LevenshteinDistance, Media, MediaID, MediaType as DomainMediaType,
-    ParticipationMode as DomainParticipationMode, Points, SerialNumber, Task, TaskID, TaskText,
+    ParticipantStatus as DomainParticipationMode, Points, SerialNumber, Task, TaskID, TaskText,
     TaskType as DomainTaskType, Team, TeamID, TeamName, User, UserID, Username,
 };
 use crate::{with_client, with_transaction};
@@ -227,7 +227,7 @@ impl From<DomainParticipationMode> for ParticipationMode {
     fn from(value: DomainParticipationMode) -> Self {
         match value {
             DomainParticipationMode::Solo => ParticipationMode::Solo,
-            DomainParticipationMode::WantTeam => ParticipationMode::WantTeam,
+            DomainParticipationMode::LookingForTeam => ParticipationMode::WantTeam,
             DomainParticipationMode::Team(_) => ParticipationMode::Team,
         }
     }
@@ -296,7 +296,7 @@ impl UserProvider for PostgresRepository {
 
                 let mode = match user_row.mode {
                     ParticipationMode::Solo => DomainParticipationMode::Solo,
-                    ParticipationMode::WantTeam => DomainParticipationMode::WantTeam,
+                    ParticipationMode::WantTeam => DomainParticipationMode::LookingForTeam,
                     ParticipationMode::Team => {
                         let team_id = user_row
                             .team_id
@@ -477,7 +477,7 @@ impl TeamByMemberProvider for PostgresRepository {
 impl UserRepository for PostgresRepository {
     async fn save_user(&self, user: User) -> Result<(), AppError> {
         with_transaction!(self.pool, async |tx: &Transaction| {
-            let mode = ParticipationMode::from(user.mode().clone());
+            let mode = ParticipationMode::from(user.status().clone());
             tx.execute(
                 r#"
                 INSERT INTO 
@@ -947,13 +947,13 @@ impl FeedbackRepository for PostgresRepository {
             client
                 .execute(
                     r#"
-                INSERT INTO feedbacks (
-                    author_id,
-                    text
-                )
-                VALUES
-                    ($1, $2)
-                "#,
+                    INSERT INTO feedbacks (
+                        author_id,
+                        text
+                    )
+                    VALUES
+                        ($1, $2)
+                    "#,
                     &[&feedback.author_id().as_i64(), &feedback.text().as_str()],
                 )
                 .await

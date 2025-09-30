@@ -74,7 +74,7 @@ impl Team {
             return Err(DomainError::TeamIsFull(self.member_ids.len()));
         }
         if self.member_ids.contains(&member_id) {
-            return Err(DomainError::UserAlreadyInTeam(member_id.as_i64()));
+            return Err(DomainError::UserAlreadyInTeam(member_id, self.id.clone()));
         }
         self.member_ids.push(member_id);
         Ok(())
@@ -82,7 +82,7 @@ impl Team {
 
     pub fn remove_member(mut self, member_id: UserID) -> Result<Option<Self>, DomainError> {
         if !self.member_ids.contains(&member_id) {
-            return Err(DomainError::UserIsNotMemberOfTeam(member_id.as_i64()));
+            return Err(DomainError::UserIsNotMemberOfTeam(member_id));
         }
         if member_id == self.captain_id {
             if self.member_ids.len() > 1 {
