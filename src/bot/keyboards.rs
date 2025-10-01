@@ -34,16 +34,9 @@ pub fn make_yes_and_back_keyboard() -> KeyboardMarkup {
         .one_time_keyboard()
 }
 
-pub const BTN_JOIN_TEAM: StaticStr = "Вступить в команду";
-pub const BTN_CREATE_TEAM: StaticStr = "Создать команду";
 pub const BTN_MY_TEAM: StaticStr = "Моя команда";
-pub const BTN_EXIT_TEAM: StaticStr = "Покинуть команду";
 pub const BTN_PROFILE: StaticStr = "Профиль";
-pub const BTN_REBUSES: StaticStr = "Ребусы";
-pub const BTN_RIDDLES: StaticStr = "Загадки";
 pub const BTN_CHARACTERS: StaticStr = "Личности";
-pub const BTN_TO_SOLO_MODE: StaticStr = "Перейти в соло-режим";
-pub const BTN_TO_LOOKING_FOR_TEAM: StaticStr = "Вернуться в командный режим";
 pub const BTN_GIVE_FEEDBACK: StaticStr = "Комментарий";
 
 pub fn make_menu_keyboard(user: &UserDTO) -> KeyboardMarkup {
@@ -56,10 +49,6 @@ pub fn make_menu_keyboard(user: &UserDTO) -> KeyboardMarkup {
         ]);
     }
 
-    buttons.push(vec![
-        KeyboardButton::new(BTN_REBUSES),
-        KeyboardButton::new(BTN_RIDDLES),
-    ]);
     buttons.push(vec![KeyboardButton::new(BTN_CHARACTERS)]);
     buttons.push(vec![KeyboardButton::new(BTN_GIVE_FEEDBACK)]);
 

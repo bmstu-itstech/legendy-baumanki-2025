@@ -47,7 +47,6 @@ async fn receive_menu_option(
     get_user_team: GetUserTeam,
     get_team_with_members: GetTeamWithMembers,
     get_profile: GetProfile,
-    get_user_tasks: GetUserTasks,
     get_character_names: GetCharacterNames,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
@@ -67,14 +66,6 @@ async fn receive_menu_option(
                     let user = get_user.execute(user_id).await?;
                     prompt_menu(bot, msg, dialogue, &user).await?;
                 }
-            }
-            keyboards::BTN_REBUSES => {
-                let rebuses = get_user_tasks.execute(user_id, TaskType::Rebus).await?;
-                prompt_rebus(bot, msg, dialogue, rebuses.as_ref()).await?
-            }
-            keyboards::BTN_RIDDLES => {
-                let riddles = get_user_tasks.execute(user_id, TaskType::Riddle).await?;
-                prompt_riddle(bot, msg, dialogue, riddles.as_ref()).await?
             }
             keyboards::BTN_CHARACTERS => {
                 let names = get_character_names.execute().await?;
