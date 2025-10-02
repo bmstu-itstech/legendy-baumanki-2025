@@ -22,6 +22,9 @@ enum BotCommand {
     #[command(rename = "upload", description = "загрузить медиа")]
     Upload(String),
 
+    #[command(rename = "media", description = "получить медиафайл")]
+    Media(String),
+
     #[command(rename = "cancel", description = "отменить текущую операцию")]
     Cancel,
 }
@@ -155,16 +158,61 @@ async fn send_successful_media_uploaded(
     Ok(())
 }
 
+async fn handle_media_command(
+    bot: Bot,
+    msg: Message,
+    command: BotCommand,
+    get_media: GetMedia,
+    check_admin: CheckAdmin,
+) -> BotHandlerResult {
+    let user_id = UserID::new(msg.chat.id.0);
+    if !check_admin.execute(user_id).await? {
+        send_permission_denied(&bot, &msg).await
+    } else if let BotCommand::Media(key) = command {
+        match MediaID::new(key) {
+            Err(_) => send_invalid_usage_media_command(&bot, &msg).await,
+            Ok(id) => match get_media.execute(id.clone()).await {
+                Ok(media) => {
+                    send_media_with_caption(
+                        &bot,
+                        &msg,
+                        media,
+                        &format!("<code>{}</code>", id.as_str()),
+                    )
+                    .await
+                }
+                Err(AppError::MediaNotFound(_)) => send_media_not_found(&bot, &msg, id).await,
+                Err(err) => Err(err),
+            },
+        }
+    } else {
+        send_invalid_usage_media_command(&bot, &msg).await
+    }
+}
+
+async fn send_invalid_usage_media_command(bot: &Bot, msg: &Message) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::INVALID_MEDIA_COMMAND_USAGE)
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
+}
+
+async fn send_media_not_found(bot: &Bot, msg: &Message, id: MediaID) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::media_not_found(&id))
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
+}
+
 pub fn commands_scheme() -> UpdateHandler<AppError> {
     use dptree::case;
 
     let command_handler = teloxide::filter_command::<BotCommand, _>()
         .branch(case![BotCommand::Start(payload)].endpoint(handle_start_command))
-        .branch(case![BotCommand::Upload(key)].endpoint(handle_upload_command));
+        .branch(case![BotCommand::Upload(key)].endpoint(handle_upload_command))
+        .branch(case![BotCommand::Media(key)].endpoint(handle_media_command));
 
-    let message_handler = Update::filter_message()
+    Update::filter_message()
         .branch(command_handler)
-        .branch(case![BotState::Media(key)].endpoint(receive_media));
-
-    message_handler
+        .branch(case![BotState::Media(key)].endpoint(receive_media))
 }

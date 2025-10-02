@@ -1,7 +1,7 @@
 use crate::app::usecases::dto::{
     CharacterDTO, TaskDTO, TeamWithMembersDTO, TrackDescriptionDTO, TrackInProgressDTO,
 };
-use crate::domain::models::{FileID, TrackStatus};
+use crate::domain::models::{FileID, MediaID, TrackStatus};
 use chrono::{Duration, Utc};
 use rand::seq::IndexedRandom;
 
@@ -34,6 +34,10 @@ pub const SUCCESSFUL_EXIT_TEAM: StaticStr = "👋 <b>Ты вышел из ком
 pub const INVALID_UPLOAD_COMMAND_USAGE: StaticStr = "<b>❌ Неверный формат команды</b>\n\
     Использование:\n\
     <code>/upload key</code>";
+
+pub const INVALID_MEDIA_COMMAND_USAGE: StaticStr = "<b>❌ Неверный формат команды</b>\n\
+    Использование:\n\
+    <code>/media key</code>";
 
 pub const PROMPT_MEDIA: StaticStr = "📤 <b>Загрузка файла</b>\n\
     Отправьте файл (изображение или видеосообщение) в чат, чтобы получить его FileID.";
@@ -287,5 +291,12 @@ pub fn task_question_and_explanation(task: &TaskDTO) -> String {
         task.question.as_str(),
         answers,
         task.explanation.as_str()
+    )
+}
+
+pub fn media_not_found(media_id: &MediaID) -> String {
+    format!(
+        "<b>❌ Медиафайл <code>{}</code> не найден</b>",
+        media_id.as_str()
     )
 }
