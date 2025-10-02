@@ -282,5 +282,17 @@ pub fn track_menu(track: &TrackInProgressDTO) -> String {
 }
 
 pub fn task_question_and_explanation(task: &TaskDTO) -> String {
-    format!("{}\n\n{}", task.question.as_str(), task.explanation.as_str())
+    let answers = task.correct_answers
+        .iter()
+        .map(|a| a.to_string())
+        .collect::<Vec<String>>()
+        .join(", ");
+    format!(
+        "{}\n\
+        \n\
+        <b>Правильный ответ: </b>{}\n\
+        \n\
+        {}", 
+        task.question.as_str(), answers, task.explanation.as_str()
+    )
 }

@@ -96,7 +96,6 @@ async fn prompt_track_task_groups(
     track: &TrackInProgressDTO,
     is_captain: bool,
 ) -> BotHandlerResult {
-    //bot.send_message(msg.chat.id, texts::track_menu(&track))
     bot.send_photo(msg.chat.id, InputFile::file_id(track.media.file_id.clone().into()))
         .caption(texts::track_menu(&track))
         .reply_markup(make_tasks_group_keyboard_with_back(is_captain))

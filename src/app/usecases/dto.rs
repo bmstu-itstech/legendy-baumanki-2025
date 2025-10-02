@@ -1,4 +1,4 @@
-use crate::domain::models::{CharacterFact, CharacterID, CharacterLegacy, CharacterName, CharacterQuote, FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType, Team, TeamID, TeamName, User, Username, TrackTag, TrackDescription, Track, TrackStatus, TaskID, TaskType, TaskText, TaskOption, Task, Points};
+use crate::domain::models::{CharacterFact, CharacterID, CharacterLegacy, CharacterName, CharacterQuote, FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType, Team, TeamID, TeamName, User, Username, TrackTag, TrackDescription, Track, TrackStatus, TaskID, TaskType, TaskText, TaskOption, Task, Points, CorrectAnswer};
 
 pub struct UserDTO {
     pub username: Option<Username>,
@@ -117,6 +117,7 @@ pub struct TaskDTO {
     pub explanation: TaskText,
     pub media: Option<MediaDTO>,
     pub options: Vec<TaskOption>,
+    pub correct_answers: Vec<CorrectAnswer>,
 }
 
 impl TaskDTO {
@@ -128,6 +129,7 @@ impl TaskDTO {
             explanation: task.explanation().clone(),
             media,
             options: task.options().clone(),
+            correct_answers: task.correct_answers().clone(),
         }
     }
 }

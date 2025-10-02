@@ -43,6 +43,10 @@ impl CorrectAnswer {
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
+    
+    pub fn to_string(&self) -> String {
+        self.0.clone()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -133,5 +137,9 @@ impl Task {
 
     pub fn price(&self) -> Points {
         self.price
+    }
+    
+    pub fn correct_answers(&self) -> &Vec<CorrectAnswer> {
+        &self.correct_answers
     }
 }
