@@ -22,6 +22,7 @@ pub enum BotState {
     AvailableTask(TrackTag),
     CompletedTask(TrackTag),
     TaskAnswer(TrackTag, TaskID),
+    TaskPhoto(TrackTag, TaskID),
 
     // Admin
     Media(MediaID),

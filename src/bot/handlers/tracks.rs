@@ -1,4 +1,6 @@
-use crate::app::usecases::{AnswerTask, CheckCaptain, GetAvailableTracks, GetCompletedTasks};
+use crate::app::usecases::{
+    AnswerTask, CheckCaptain, GetAvailableTracks, GetCompletedTasks, UploadMedia,
+};
 use teloxide::dispatching::UpdateHandler;
 use teloxide::prelude::*;
 use teloxide::types::{InputFile, ParseMode};
@@ -17,7 +19,8 @@ use crate::bot::keyboards::{
     make_tasks_keyboard_with_back, make_tracks_keyboard_with_back,
 };
 use crate::bot::{BotHandlerResult, fsm::BotDialogue, keyboards, texts};
-use crate::domain::models::{TaskID, TaskType, TrackTag, UserID};
+use crate::domain::models::{FileID, Media, MediaID, TaskID, TaskType, TrackTag, UserID};
+use crate::utils::uuid::new_pseudo_uuid;
 
 pub async fn prompt_track(
     bot: Bot,
@@ -244,7 +247,11 @@ async fn receive_available_task(
                 Err(_) => send_use_keyboard(&bot, &msg).await,
                 Ok(id) => {
                     let task = get_task.execute(id).await?;
-                    prompt_text_task_answer(bot, msg, dialogue, tag, &task).await
+                    if matches!(task.task_type, TaskType::Photo) {
+                        prompt_photo_answer(bot, msg, dialogue, tag, &task).await
+                    } else {
+                        prompt_text_task_answer(bot, msg, dialogue, tag, &task).await
+                    }
                 }
             },
         },
@@ -307,6 +314,34 @@ async fn prompt_text_task_answer(
     Ok(())
 }
 
+async fn prompt_photo_answer(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    track_tag: TrackTag,
+    task: &TaskDTO,
+) -> BotHandlerResult {
+    if let Some(media) = &task.media {
+        bot.send_photo(
+            msg.chat.id,
+            InputFile::file_id(media.file_id.clone().into()),
+        )
+        .caption(task.question.as_str())
+        .reply_markup(make_back_keyboard())
+        .parse_mode(ParseMode::Html)
+        .await?;
+    } else {
+        bot.send_message(msg.chat.id, task.question.as_str())
+            .reply_markup(make_back_keyboard())
+            .parse_mode(ParseMode::Html)
+            .await?;
+    }
+    dialogue
+        .update(BotState::TaskPhoto(track_tag, task.id))
+        .await?;
+    Ok(())
+}
+
 async fn receive_task_answer(
     bot: Bot,
     msg: Message,
@@ -338,6 +373,60 @@ async fn receive_task_answer(
             }
         }
     }
+}
+
+const PHOTO_TASK_ANSWER_MEDIA_ID_LENGTH: usize = 6;
+
+async fn receive_task_photo(
+    bot: Bot,
+    msg: Message,
+    dialogue: BotDialogue,
+    (tag, task_id): (TrackTag, TaskID),
+    answer_task: AnswerTask,
+    get_available_tasks: GetAvailableTasks,
+    upload_media: UploadMedia,
+) -> BotHandlerResult {
+    let user_id = UserID::new(msg.chat.id.0);
+    match msg.text() {
+        Some(keyboards::BTN_BACK) => {
+            let tasks = get_available_tasks.execute(user_id, tag).await?;
+            prompt_available_task(bot, msg, dialogue, tag, &tasks).await?;
+            return Ok(());
+        }
+        _ => {}
+    }
+
+    if let Some(photos) = msg.photo() {
+        let photo = photos.first().unwrap();
+        let file_id = FileID::new(photo.file.id.0.clone())?;
+        let media_id = MediaID::new(new_pseudo_uuid(PHOTO_TASK_ANSWER_MEDIA_ID_LENGTH)).unwrap();
+        let media = Media::image(media_id.clone(), file_id.clone());
+        upload_media.execute(media).await?;
+        send_photo_answer_accepted(&bot, &msg).await?;
+        answer_task
+            .execute(user_id, tag, task_id, media_id.to_string())
+            .await?;
+        let tasks = get_available_tasks.execute(user_id, tag).await?;
+        prompt_available_task(bot, msg, dialogue, tag, &tasks).await
+    } else {
+        send_invalid_photo_sent(&bot, &msg).await
+    }
+}
+
+async fn send_photo_answer_accepted(bot: &Bot, msg: &Message) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::PHOTO_TASK_ACCEPTED)
+        .reply_markup(make_back_keyboard())
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
+}
+
+async fn send_invalid_photo_sent(bot: &Bot, msg: &Message) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::PLEASE_SEND_PHOTO)
+        .reply_markup(make_back_keyboard())
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
 }
 
 async fn send_answer_is_correct(bot: &Bot, msg: &Message) -> BotHandlerResult {
@@ -382,4 +471,5 @@ pub fn tracks_scheme() -> UpdateHandler<AppError> {
         .branch(case![BotState::AvailableTask(tag)].endpoint(receive_available_task))
         .branch(case![BotState::TaskAnswer(tag, task_id)].endpoint(receive_task_answer))
         .branch(case![BotState::CompletedTask(tag)].endpoint(receive_completed_task))
+        .branch(case![BotState::TaskPhoto(tag, task_id)].endpoint(receive_task_photo))
 }
