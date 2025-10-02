@@ -4,7 +4,9 @@ use teloxide::prelude::*;
 use teloxide::types::ParseMode;
 
 use crate::app::error::AppError;
-use crate::app::usecases::{CheckAdmin, CheckRegistered, GetMedia, GetUser, UploadMedia};
+use crate::app::usecases::{
+    CheckAdmin, CheckRegistered, GetMedia, GetPlayer, GetUser, UploadMedia,
+};
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::menu::prompt_menu;
 use crate::bot::handlers::shared::{send_media_with_caption, send_permission_denied};
@@ -29,17 +31,16 @@ async fn handle_start_command(
     msg: Message,
     dialogue: BotDialogue,
     check_registered: CheckRegistered,
-    get_user: GetUser,
+    get_player: GetPlayer,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     let registered = check_registered.execute(user_id).await?;
     if !registered {
-        send_registration_closed(&bot, &msg).await?;
+        send_registration_closed(&bot, &msg).await
     } else {
-        let user = get_user.execute(user_id).await?;
-        prompt_menu(bot, msg, dialogue, &user).await?;
+        let player = get_player.execute(user_id).await?;
+        prompt_menu(bot, msg, dialogue, &player).await
     }
-    Ok(())
 }
 
 async fn send_registration_closed(bot: &Bot, msg: &Message) -> BotHandlerResult {

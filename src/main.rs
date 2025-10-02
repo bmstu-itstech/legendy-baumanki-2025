@@ -6,9 +6,9 @@ use teloxide::prelude::*;
 use crate::app::usecases::app::App;
 use crate::app::usecases::{
     AnswerTask, CheckAdmin, CheckCaptain, CheckRegistered, CheckStartedTrack, GetAvailableTasks,
-    GetAvailableTracks, GetCharacter, GetCharacterNames, GetCompletedTasks, GetMedia, GetProfile,
-    GetTask, GetTeamWithMembers, GetTrackInProgress, GetUser, GetUserTeam, GiveFeedback,
-    StartTrack, UploadMedia,
+    GetAvailableTracks, GetCharacter, GetCharacterNames, GetCompletedTasks, GetMedia, GetPlayer,
+    GetProfile, GetTask, GetTeamWithMembers, GetTrackInProgress, GetUser, GetUserTeam,
+    GiveFeedback, StartTrack, UploadMedia,
 };
 use crate::bot::dispatcher::BotDispatcher;
 use crate::infra::postgres::PostgresRepository;
@@ -45,6 +45,7 @@ async fn main() {
         get_character_names: GetCharacterNames::new(repos.clone()),
         get_completed_tasks: GetCompletedTasks::new(repos.clone(), repos.clone()),
         get_media: GetMedia::new(repos.clone()),
+        get_player: GetPlayer::new(repos.clone(), repos.clone()),
         get_profile: GetProfile::new(repos.clone(), repos.clone()),
         get_task: GetTask::new(repos.clone(), repos.clone()),
         get_available_tracks: GetAvailableTracks::new(repos.clone()),

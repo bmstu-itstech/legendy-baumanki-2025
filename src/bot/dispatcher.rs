@@ -31,6 +31,7 @@ impl BotDispatcher {
                 app.get_character_names,
                 app.get_completed_tasks,
                 app.get_media,
+                app.get_player,
                 app.get_profile,
                 app.get_task,
                 app.get_available_tracks,

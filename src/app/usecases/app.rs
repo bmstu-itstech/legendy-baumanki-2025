@@ -2,8 +2,9 @@ use crate::app::usecases::get_available_tasks::GetAvailableTasks;
 use crate::app::usecases::get_task::GetTask;
 use crate::app::usecases::{
     AnswerTask, CheckAdmin, CheckCaptain, CheckRegistered, CheckStartedTrack, GetAvailableTracks,
-    GetCharacter, GetCharacterNames, GetCompletedTasks, GetMedia, GetProfile, GetTeamWithMembers,
-    GetTrackInProgress, GetUser, GetUserTeam, GiveFeedback, StartTrack, UploadMedia,
+    GetCharacter, GetCharacterNames, GetCompletedTasks, GetMedia, GetPlayer, GetProfile,
+    GetTeamWithMembers, GetTrackInProgress, GetUser, GetUserTeam, GiveFeedback, StartTrack,
+    UploadMedia,
 };
 
 pub struct App {
@@ -18,6 +19,7 @@ pub struct App {
     pub get_character_names: GetCharacterNames,
     pub get_completed_tasks: GetCompletedTasks,
     pub get_media: GetMedia,
+    pub get_player: GetPlayer,
     pub get_profile: GetProfile,
     pub get_task: GetTask,
     pub get_team_with_members: GetTeamWithMembers,

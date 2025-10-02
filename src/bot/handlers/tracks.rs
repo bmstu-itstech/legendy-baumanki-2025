@@ -1,5 +1,5 @@
 use crate::app::usecases::{
-    AnswerTask, CheckCaptain, GetAvailableTracks, GetCompletedTasks, UploadMedia,
+    AnswerTask, CheckCaptain, GetAvailableTracks, GetCompletedTasks, GetPlayer, UploadMedia,
 };
 use teloxide::dispatching::UpdateHandler;
 use teloxide::prelude::*;
@@ -8,7 +8,7 @@ use teloxide::types::{InputFile, ParseMode};
 use crate::app::error::AppError;
 use crate::app::usecases::dto::{TaskDTO, TrackInProgressDTO};
 use crate::app::usecases::{
-    CheckStartedTrack, GetAvailableTasks, GetTask, GetTrackInProgress, GetUser, StartTrack,
+    CheckStartedTrack, GetAvailableTasks, GetTask, GetTrackInProgress, StartTrack,
 };
 use crate::bot::fsm::BotState;
 use crate::bot::handlers::menu::prompt_menu;
@@ -40,7 +40,7 @@ async fn receive_track(
     bot: Bot,
     msg: Message,
     dialogue: BotDialogue,
-    get_user: GetUser,
+    get_player: GetPlayer,
     check_started_track: CheckStartedTrack,
     get_track_in_progress: GetTrackInProgress,
     check_captain: CheckCaptain,
@@ -50,8 +50,8 @@ async fn receive_track(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await,
         Some(keyboards::BTN_BACK) => {
-            let user = get_user.execute(user_id).await?;
-            prompt_menu(bot, msg, dialogue, &user).await
+            let player = get_player.execute(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &player).await
         }
         Some(text) => {
             if let Some(tag) = TrackTag::try_parse(text) {

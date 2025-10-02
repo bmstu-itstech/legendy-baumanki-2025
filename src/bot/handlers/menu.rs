@@ -1,11 +1,12 @@
+use crate::GetPlayer;
 use teloxide::dispatching::UpdateHandler;
 use teloxide::prelude::*;
 use teloxide::types::{InputFile, Message, ParseMode};
 
 use crate::app::error::AppError;
-use crate::app::usecases::dto::{CharacterDTO, TeamWithMembersDTO, UserDTO};
+use crate::app::usecases::dto::{CharacterDTO, PlayerDTO, TeamWithMembersDTO};
 use crate::app::usecases::{
-    GetAvailableTracks, GetCharacter, GetCharacterNames, GetTeamWithMembers, GetUser, GetUserTeam,
+    GetAvailableTracks, GetCharacter, GetCharacterNames, GetTeamWithMembers, GetUserTeam,
     GiveFeedback,
 };
 use crate::bot::fsm::{BotDialogue, BotState};
@@ -21,9 +22,9 @@ pub async fn prompt_menu(
     bot: Bot,
     msg: Message,
     dialogue: BotDialogue,
-    user: &UserDTO,
+    player: &PlayerDTO,
 ) -> BotHandlerResult {
-    let markup = make_menu_keyboard(user);
+    let markup = make_menu_keyboard(player);
     bot.send_message(msg.chat.id, texts::MENU_TEXT)
         .reply_markup(markup)
         .parse_mode(ParseMode::Html)
@@ -36,7 +37,7 @@ async fn receive_menu_option(
     bot: Bot,
     msg: Message,
     dialogue: BotDialogue,
-    get_user: GetUser,
+    get_player: GetPlayer,
     get_user_team: GetUserTeam,
     get_team_with_members: GetTeamWithMembers,
     get_character_names: GetCharacterNames,
@@ -52,8 +53,8 @@ async fn receive_menu_option(
                     if !team.solo {
                         send_my_team(&bot, &msg, team).await?;
                     }
-                    let user = get_user.execute(user_id).await?;
-                    prompt_menu(bot, msg, dialogue, &user).await?;
+                    let player = get_player.execute(user_id).await?;
+                    prompt_menu(bot, msg, dialogue, &player).await?
                 }
             }
             keyboards::BTN_TRACKS => {
@@ -67,8 +68,8 @@ async fn receive_menu_option(
             keyboards::BTN_GIVE_FEEDBACK => prompt_feedback(bot, msg, dialogue).await?,
             _ => {
                 send_unknown_menu_option(&bot, &msg).await?;
-                let user = get_user.execute(user_id).await?;
-                prompt_menu(bot, msg, dialogue, &user).await?
+                let player = get_player.execute(user_id).await?;
+                prompt_menu(bot, msg, dialogue, &player).await?
             }
         },
     }
@@ -107,7 +108,7 @@ async fn receive_character_name(
     bot: Bot,
     msg: Message,
     dialogue: BotDialogue,
-    get_user: GetUser,
+    get_player: GetPlayer,
     get_character: GetCharacter,
     get_character_names: GetCharacterNames,
 ) -> BotHandlerResult {
@@ -115,8 +116,8 @@ async fn receive_character_name(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await,
         Some(keyboards::BTN_BACK) => {
-            let user = get_user.execute(user_id).await?;
-            prompt_menu(bot, msg, dialogue, &user).await
+            let player = get_player.execute(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &player).await
         }
         Some(text) => {
             let name = CharacterName::new(text.to_string())?;
@@ -163,21 +164,21 @@ async fn receive_feedback(
     msg: Message,
     dialogue: BotDialogue,
     give_feedback: GiveFeedback,
-    get_user: GetUser,
+    get_player: GetPlayer,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
         None => send_enter_message(&bot, &msg).await,
         Some(keyboards::BTN_BACK) => {
-            let user = get_user.execute(user_id).await?;
-            prompt_menu(bot, msg, dialogue, &user).await
+            let player = get_player.execute(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &player).await
         }
         Some(text) => {
             let text = FeedbackText::new(text.to_string())?;
             give_feedback.execute(user_id, text).await?;
             send_feedback_sent(&bot, &msg).await?;
-            let user = get_user.execute(user_id).await?;
-            prompt_menu(bot, msg, dialogue, &user).await
+            let player = get_player.execute(user_id).await?;
+            prompt_menu(bot, msg, dialogue, &player).await
         }
     }
 }

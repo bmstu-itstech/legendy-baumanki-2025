@@ -22,17 +22,16 @@ impl GetTeamWithMembers {
     pub async fn execute(&self, team_id: TeamID) -> Result<TeamWithMembersDTO, AppError> {
         let team = self.team_provider.team(&team_id).await?;
         let mut members: Vec<UserDTO> = Vec::new();
-        for member_id in team.member_ids() {
-            let member = self.user_provider.user(*member_id).await?;
+        for &member_id in team.member_ids() {
+            let member = self.user_provider.user(member_id).await?;
             members.push(member.into());
         }
-        Ok(TeamWithMembersDTO {
-            id: team.id().clone(),
-            solo: team.is_solo(),
-            name: team.name().clone(),
-            size: members.len(),
-            max_size: MAX_TEAM_SIZE,
+        let captain = self.user_provider.user(team.captain_id()).await?.into();
+        Ok(TeamWithMembersDTO::new(
+            &team,
+            MAX_TEAM_SIZE,
+            captain,
             members,
-        })
+        ))
     }
 }

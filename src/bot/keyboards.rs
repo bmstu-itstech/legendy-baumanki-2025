@@ -1,6 +1,6 @@
 use teloxide::types::{KeyboardButton, KeyboardMarkup};
 
-use crate::app::usecases::dto::UserDTO;
+use crate::app::usecases::dto::PlayerDTO;
 use crate::domain::models::{CharacterName, TaskID, TaskOption, TrackTag};
 
 type StaticStr = &'static str;
@@ -101,22 +101,19 @@ pub fn make_options_keyboard_with_back(options: &[TaskOption]) -> KeyboardMarkup
         .one_time_keyboard()
 }
 
-pub const BTN_PROFILE: StaticStr = "Профиль";
 pub const BTN_MY_TEAM: StaticStr = "Моя команда";
 pub const BTN_TRACKS: StaticStr = "Треки";
 pub const BTN_CHARACTERS: StaticStr = "Личности";
 pub const BTN_GIVE_FEEDBACK: StaticStr = "Комментарий";
 
-pub fn make_menu_keyboard(user: &UserDTO) -> KeyboardMarkup {
+pub fn make_menu_keyboard(player: &PlayerDTO) -> KeyboardMarkup {
     let mut buttons = Vec::new();
 
-    buttons.push(vec![KeyboardButton::new(BTN_TRACKS)]);
-
-    //let mut first = vec![KeyboardButton::new(BTN_PROFILE)];
-    //if user.team_id.is_some() {
-    //    first.push(KeyboardButton::new(BTN_MY_TEAM));
-    //}
-    //buttons.push(first);
+    let mut first_row = vec![KeyboardButton::new(BTN_TRACKS)];
+    if !player.solo_team {
+        first_row.push(KeyboardButton::new(BTN_MY_TEAM));
+    }
+    buttons.push(first_row);
 
     buttons.push(vec![KeyboardButton::new(BTN_CHARACTERS)]);
     buttons.push(vec![KeyboardButton::new(BTN_GIVE_FEEDBACK)]);

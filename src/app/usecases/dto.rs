@@ -23,6 +23,11 @@ impl From<User> for UserDTO {
     }
 }
 
+pub struct PlayerDTO {
+    pub username: Option<Username>,
+    pub solo_team: bool,
+}
+
 pub struct TeamDTO {
     pub id: TeamID,
     pub name: TeamName,
@@ -52,7 +57,22 @@ pub struct TeamWithMembersDTO {
     pub name: TeamName,
     pub size: usize,
     pub max_size: usize,
+    pub captain: UserDTO,
     pub members: Vec<UserDTO>,
+}
+
+impl TeamWithMembersDTO {
+    pub fn new(team: &Team, max_size: usize, captain: UserDTO, members: Vec<UserDTO>) -> Self {
+        Self {
+            id: team.id().clone(),
+            solo: team.is_solo(),
+            name: team.name().clone(),
+            size: members.len(),
+            max_size,
+            captain,
+            members,
+        }
+    }
 }
 
 pub struct MediaDTO {

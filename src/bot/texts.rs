@@ -164,9 +164,14 @@ pub fn my_team(team: TeamWithMembersDTO) -> String {
     format!(
         "📊 <b>Информация о команде:</b>\n\
         • Название: {}\n\
+        • Капитан: @{}\n\
         • Участники ({}/{}):\n\
         {}",
         team.name.as_str(),
+        team.captain
+            .username
+            .map(|u| u.to_string())
+            .unwrap_or("(без никнейма)".to_string()),
         team.size,
         team.max_size,
         usernames_text,
