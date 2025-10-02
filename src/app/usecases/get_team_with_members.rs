@@ -31,7 +31,6 @@ impl GetTeamWithMembers {
             name: team.name().clone(),
             size: members.len(),
             max_size: MAX_TEAM_SIZE,
-            completed: team.is_completed(),
             members,
         })
     }

@@ -1,14 +1,10 @@
 use chrono::{DateTime, Utc};
 
 use crate::domain::error::DomainError;
-use crate::domain::models::TaskID;
 use crate::domain::models::points::Points;
+use crate::domain::models::TaskID;
 use crate::pseudo_uuid_impl;
 use crate::utils::uuid::new_pseudo_uuid;
-
-#[derive(Debug, Clone)]
-pub struct AnswerID(String);
-pseudo_uuid_impl!(AnswerID, 8);
 
 #[derive(Debug, Clone)]
 pub struct AnswerText(String);
@@ -21,15 +17,10 @@ impl AnswerText {
     pub fn as_str(&self) -> &str {
         &self.0
     }
-
-    pub fn to_string(&self) -> String {
-        self.0.clone()
-    }
 }
 
 #[derive(Debug, Clone)]
 pub struct Answer {
-    id: AnswerID,
     task_id: TaskID,
     text: AnswerText,
     points: Points,
@@ -39,7 +30,6 @@ pub struct Answer {
 impl Answer {
     pub fn new(task_id: TaskID, text: AnswerText, points: Points) -> Self {
         Self {
-            id: AnswerID::new(),
             task_id,
             text,
             points,
@@ -48,14 +38,12 @@ impl Answer {
     }
 
     pub fn restore(
-        id: AnswerID,
         task_id: TaskID,
         text: AnswerText,
         points: Points,
         created_at: DateTime<Utc>,
     ) -> Self {
         Self {
-            id,
             task_id,
             text,
             points,
@@ -63,12 +51,8 @@ impl Answer {
         }
     }
 
-    pub fn id(&self) -> &AnswerID {
-        &self.id
-    }
-
-    pub fn task_id(&self) -> &TaskID {
-        &self.task_id
+    pub fn task_id(&self) ->TaskID {
+        self.task_id
     }
 
     pub fn text(&self) -> &AnswerText {
@@ -83,7 +67,11 @@ impl Answer {
         &self.created_at
     }
 
-    pub fn solved(&self) -> bool {
-        self.points > Points::zero()
+    pub fn is_ok(&self) -> bool {
+        self.points.is_positive()
+    }
+    
+    pub fn is_failed(&self) -> bool {
+        self.points.is_zero()
     }
 }

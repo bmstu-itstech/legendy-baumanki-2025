@@ -1,6 +1,10 @@
+use crate::domain::models::Points;
+use std::collections::HashMap;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::domain::error::DomainError;
+use crate::domain::models::{Answer, TaskID, TrackTag};
 use crate::utils::uuid::new_pseudo_uuid;
 use crate::{not_empty_string_impl, pseudo_uuid_impl};
 
@@ -14,8 +18,13 @@ pseudo_uuid_impl!(TeamID, 6);
 pub struct TeamName(String);
 not_empty_string_impl!(TeamName);
 
-pub const MIN_COMPLETED_TEAM_SIZE: usize = 5;
 pub const MAX_TEAM_SIZE: usize = 8;
+
+#[derive(Debug, Clone)]
+pub enum TrackStatus {
+    Started(DateTime<Utc>),
+    Finished(DateTime<Utc>, DateTime<Utc>),
+}
 
 #[derive(Debug, Clone)]
 pub struct Team {
@@ -23,25 +32,20 @@ pub struct Team {
     name: TeamName,
     captain_id: UserID,
     member_ids: Vec<UserID>,
+    answers: HashMap<TaskID, Answer>,
+    started_tracks: HashMap<TrackTag, TrackStatus>,
+    hint_points: Points,
 }
 
 impl Team {
-    pub fn new(name: TeamName, captain_id: UserID) -> Self {
-        let id = TeamID::new();
-        let member_ids = vec![captain_id];
-        Self {
-            id,
-            name,
-            captain_id,
-            member_ids,
-        }
-    }
-
     pub fn restore(
         id: TeamID,
         name: TeamName,
         captain_id: UserID,
         member_ids: Vec<UserID>,
+        answers: Vec<Answer>,
+        started_tracks: HashMap<TrackTag, TrackStatus>,
+        hint_points: Points,
     ) -> Result<Self, DomainError> {
         if !member_ids
             .iter()
@@ -61,41 +65,16 @@ impl Team {
                 MAX_TEAM_SIZE
             )));
         }
+        let answers_map = HashMap::from_iter(answers.into_iter().map(|a| (a.task_id(), a)));
         Ok(Self {
             id,
             name,
             captain_id,
             member_ids,
+            answers: answers_map,
+            started_tracks,
+            hint_points,
         })
-    }
-
-    pub fn add_member(&mut self, member_id: UserID) -> Result<(), DomainError> {
-        if self.member_ids.len() + 1 > MAX_TEAM_SIZE {
-            return Err(DomainError::TeamIsFull(self.member_ids.len()));
-        }
-        if self.member_ids.contains(&member_id) {
-            return Err(DomainError::UserAlreadyInTeam(member_id, self.id.clone()));
-        }
-        self.member_ids.push(member_id);
-        Ok(())
-    }
-
-    pub fn remove_member(mut self, member_id: UserID) -> Result<Option<Self>, DomainError> {
-        if !self.member_ids.contains(&member_id) {
-            return Err(DomainError::UserIsNotMemberOfTeam(member_id));
-        }
-        if member_id == self.captain_id {
-            if self.member_ids.len() > 1 {
-                self.member_ids.retain(|id| *id != member_id);
-                self.captain_id = *self.member_ids.first().unwrap();
-                Ok(Some(self))
-            } else {
-                Ok(None)
-            }
-        } else {
-            self.member_ids.retain(|id| *id != member_id);
-            Ok(Some(self))
-        }
     }
 
     pub fn id(&self) -> &TeamID {
@@ -114,7 +93,65 @@ impl Team {
         &self.member_ids
     }
 
-    pub fn is_completed(&self) -> bool {
-        self.member_ids.len() >= MIN_COMPLETED_TEAM_SIZE
+    // Страшный костыль, когда одиночные игроки это команды с одним игроком...
+    pub fn is_solo(&self) -> bool {
+        self.member_ids.len() == 1
+    }
+    
+    pub fn available_tracks(&self) -> &'static [TrackTag] {
+        if self.is_solo() {
+            &[ TrackTag::Universitet ]
+        } else {
+            &[ TrackTag::Muzhestvo, TrackTag::Volya, TrackTag::Trud, TrackTag::Uporstvo ]
+        }
+    }
+    
+    pub fn hint_points(&self) -> Points {
+        self.hint_points
+    }
+    
+    pub fn answers(&self) -> Vec<&Answer> {
+        self.answers.values().collect()
+    }
+    
+    pub fn started_tracks(&self) -> &HashMap<TrackTag, TrackStatus> {
+        &self.started_tracks
+    }
+    
+    pub fn start_track(&mut self, tag: TrackTag) -> Result<(), DomainError> {
+        if self.started_tracks.contains_key(&tag) {
+            return Err(DomainError::TrackCanNotBeStarted(tag))
+        }
+        self.started_tracks.insert(tag, TrackStatus::Started(Utc::now()));
+        Ok(())
+    }
+    
+    pub fn finish_track(&mut self, tag: TrackTag) -> Result<(), DomainError> {
+        match self.started_tracks.get(&tag) {
+            None => Err(DomainError::TrackCanNotBeFinished(tag)),
+            Some(TrackStatus::Finished(_, _)) => {
+                Err(DomainError::TrackCanNotBeFinished(tag))
+            },
+            Some(TrackStatus::Started(start)) => {
+                self.started_tracks.insert(tag, TrackStatus::Finished(start.clone(), Utc::now()));
+                Ok(())
+            }
+        }
+    }
+    
+    pub fn save_answer(&mut self, answer: Answer) {
+        self.answers.insert(answer.task_id(), answer);
+    }
+    
+    pub fn track_status(&self, tag: TrackTag) -> Result<&TrackStatus, DomainError> {
+        self.started_tracks.get(&tag).ok_or(DomainError::TrackNotStarted(tag))
+    }
+    
+    pub fn track_is_started(&self, tag: TrackTag) -> bool {
+        self.started_tracks.contains_key(&tag)
+    }
+    
+    pub fn is_captain(&self, user_id: UserID) -> bool {
+        self.captain_id == user_id
     }
 }

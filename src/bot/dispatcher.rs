@@ -9,7 +9,7 @@ use crate::app::usecases::app::App;
 use crate::bot::fsm::BotState;
 use crate::bot::handlers::commands::commands_scheme;
 use crate::bot::handlers::menu::menu_scheme;
-use crate::bot::handlers::registration::registration_scheme;
+use crate::bot::handlers::tracks::tracks_scheme;
 
 pub struct BotDispatcher;
 
@@ -23,24 +23,23 @@ impl BotDispatcher {
             .dependencies(dptree::deps![
                 app.answer_task,
                 app.check_admin,
+                app.check_captain,
                 app.check_registered,
-                app.create_team,
-                app.exit_team,
+                app.check_started_track,
+                app.get_available_tasks,
                 app.get_character,
                 app.get_character_names,
+                app.get_completed_tasks,
                 app.get_media,
                 app.get_profile,
                 app.get_task,
+                app.get_available_tracks,
                 app.get_team_with_members,
+                app.get_track_in_progress,
                 app.get_user,
-                app.get_user_tasks,
-                app.get_user_task,
                 app.get_user_team,
                 app.give_feedback,
-                app.join_team,
-                app.register_user,
-                app.switch_to_solo_mode,
-                app.switch_to_want_team_mode,
+                app.start_track,
                 app.upload_media,
                 postgres_storage
             ])
@@ -54,7 +53,7 @@ impl BotDispatcher {
     fn scheme() -> UpdateHandler<AppError> {
         enter::<Update, PostgresStorage<Json>, BotState, _>()
             .branch(commands_scheme())
-            .branch(registration_scheme())
             .branch(menu_scheme())
+            .branch(tracks_scheme())
     }
 }

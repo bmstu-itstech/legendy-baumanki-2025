@@ -1,8 +1,5 @@
 use crate::app::error::AppError;
-use crate::domain::models::{
-    Character, CharacterName, Feedback, Media, MediaID, Task, TaskID, TaskType, Team, TeamID, User,
-    UserID,
-};
+use crate::domain::models::{Character, CharacterName, Feedback, Media, MediaID, Task, TaskID, Team, TeamID, Track, TrackTag, User, UserID};
 
 #[async_trait::async_trait]
 pub trait UserProvider: Send + Sync {
@@ -56,11 +53,6 @@ pub trait TaskProvider: Send + Sync {
 }
 
 #[async_trait::async_trait]
-pub trait TasksProvider: Send + Sync {
-    async fn tasks(&self, task_type: TaskType) -> Result<Vec<Task>, AppError>;
-}
-
-#[async_trait::async_trait]
 pub trait CharactersProvider: Send + Sync {
     async fn characters(&self) -> Result<Vec<Character>, AppError>;
     async fn character_by_name(&self, name: &CharacterName) -> Result<Option<Character>, AppError>;
@@ -69,4 +61,9 @@ pub trait CharactersProvider: Send + Sync {
 #[async_trait::async_trait]
 pub trait FeedbackRepository: Send + Sync {
     async fn save_feedback(&self, feedback: Feedback) -> Result<(), AppError>;
+}
+
+#[async_trait::async_trait]
+pub trait TrackProvider: Send + Sync {
+    async fn track(&self, tag: TrackTag) -> Result<Track, AppError>;
 }

@@ -1,16 +1,10 @@
-use crate::domain::models::{
-    Answer, AnswerID, AnswerText, CharacterFact, CharacterID, CharacterLegacy, CharacterName,
-    CharacterQuote, FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType,
-    ParticipantStatus, Points, SerialNumber, Task, TaskID, TaskText, TaskType, Team, TeamID,
-    TeamName, User, Username,
-};
-use chrono::{DateTime, Utc};
+use crate::domain::models::{CharacterFact, CharacterID, CharacterLegacy, CharacterName, CharacterQuote, FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType, Team, TeamID, TeamName, User, Username, TrackTag, TrackDescription, Track, TrackStatus, TaskID, TaskType, TaskText, TaskOption, Task, Points};
 
 pub struct UserDTO {
     pub username: Option<Username>,
     pub full_name: FullName,
     pub group_name: GroupName,
-    pub mode: ParticipantStatus,
+    pub team_id: Option<TeamID>,
 }
 
 impl From<User> for UserDTO {
@@ -19,7 +13,7 @@ impl From<User> for UserDTO {
             username: u.username().cloned(),
             full_name: u.full_name().clone(),
             group_name: u.group_name().clone(),
-            mode: u.status().clone(),
+            team_id: u.team_id().cloned(),
         }
     }
 }
@@ -29,7 +23,6 @@ pub struct TeamDTO {
     pub name: TeamName,
     pub size: usize,
     pub max_size: usize,
-    pub completed: bool,
 }
 
 impl From<Team> for TeamDTO {
@@ -39,28 +32,13 @@ impl From<Team> for TeamDTO {
             name: t.name().clone(),
             size: t.member_ids().len(),
             max_size: MAX_TEAM_SIZE,
-            completed: t.is_completed(),
         }
     }
 }
 
 pub struct Profile {
-    pub username: Option<Username>,
-    pub full_name: FullName,
-    pub group_name: GroupName,
+    pub user: UserDTO,
     pub team_name: Option<TeamName>,
-    pub mode: ParticipantStatus,
-}
-
-impl Into<UserDTO> for Profile {
-    fn into(self) -> UserDTO {
-        UserDTO {
-            username: self.username,
-            full_name: self.full_name,
-            group_name: self.group_name,
-            mode: self.mode,
-        }
-    }
 }
 
 pub struct TeamWithMembersDTO {
@@ -68,7 +46,6 @@ pub struct TeamWithMembersDTO {
     pub name: TeamName,
     pub size: usize,
     pub max_size: usize,
-    pub completed: bool,
     pub members: Vec<UserDTO>,
 }
 
@@ -88,56 +65,6 @@ impl From<Media> for MediaDTO {
     }
 }
 
-pub struct TaskDTO {
-    pub id: TaskID,
-    pub index: SerialNumber,
-    pub task_type: TaskType,
-    pub media_id: MediaID,
-    pub explanation: TaskText,
-}
-
-impl From<Task> for TaskDTO {
-    fn from(t: Task) -> Self {
-        Self {
-            id: t.id().clone(),
-            index: t.index(),
-            task_type: t.task_type(),
-            media_id: t.media_id().clone(),
-            explanation: t.explanation().clone(),
-        }
-    }
-}
-
-pub struct UserTaskDTO {
-    pub id: TaskID,
-    pub index: SerialNumber,
-    pub media_id: MediaID,
-    pub explanation: TaskText,
-    pub solved: bool,
-}
-
-pub struct AnswerDTO {
-    pub id: AnswerID,
-    pub task_id: TaskID,
-    pub text: AnswerText,
-    pub points: Points,
-    pub solved: bool,
-    pub created_at: DateTime<Utc>,
-}
-
-impl From<Answer> for AnswerDTO {
-    fn from(a: Answer) -> Self {
-        Self {
-            id: a.id().clone(),
-            task_id: a.task_id().clone(),
-            text: a.text().clone(),
-            points: a.points(),
-            solved: a.solved(),
-            created_at: a.created_at().clone(),
-        }
-    }
-}
-
 pub struct CharacterDTO {
     pub id: CharacterID,
     pub name: CharacterName,
@@ -145,4 +72,67 @@ pub struct CharacterDTO {
     pub facts: Vec<CharacterFact>,
     pub legacy: CharacterLegacy,
     pub image_id: FileID,
+}
+
+pub struct TrackDescriptionDTO {
+    pub tag: TrackTag,
+    pub description: TrackDescription,
+    pub media: MediaDTO,
+}
+
+impl TrackDescriptionDTO {
+    pub fn new(track: &Track, media: MediaDTO) -> Self {
+        Self {
+            tag: track.tag(),
+            description: track.description().clone(),
+            media,
+        }
+    }
+}
+
+pub struct TrackInProgressDTO {
+    pub tag: TrackTag,
+    pub description: TrackDescription,
+    pub media: MediaDTO,
+    pub status: TrackStatus,
+    pub percent: f32,
+}
+
+impl TrackInProgressDTO {
+    pub fn new(track: &Track, media: MediaDTO, status: TrackStatus, percent: f32) -> Self {
+        Self {
+            tag: track.tag(),
+            description: track.description().clone(),
+            media,
+            status,
+            percent,
+        }
+    }
+}
+
+pub struct TaskDTO {
+    pub id: TaskID,
+    pub task_type: TaskType,
+    pub question: TaskText,
+    pub explanation: TaskText,
+    pub media: Option<MediaDTO>,
+    pub options: Vec<TaskOption>,
+}
+
+impl TaskDTO {
+    pub fn new(task: &Task, media: Option<MediaDTO>) -> Self {
+        Self {
+            id: task.id(),
+            task_type: task.task_type(),
+            question: task.question().clone(),
+            explanation: task.explanation().clone(),
+            media,
+            options: task.options().clone(),
+        }
+    }
+}
+
+pub struct AnswerDTO {
+    pub points: Points,
+    pub completed: bool,
 }

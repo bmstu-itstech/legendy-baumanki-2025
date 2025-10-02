@@ -1,23 +1,16 @@
-use chrono::{DateTime, Utc};
+use crate::domain::models::{Answer, AnswerText, CorrectAnswer, Points, Task, TaskID, TaskText, TrackStatus};
 use deadpool_postgres::Pool;
 use postgres_types::{FromSql, ToSql};
+use std::collections::HashMap;
+use chrono::{DateTime, Utc};
 use tokio_postgres::{Client, GenericClient};
 use tokio_postgres::{Row, Transaction};
 
 use crate::app::error::AppError;
-use crate::app::ports::{
-    CharactersProvider, FeedbackRepository, IsAdminProvider, IsRegisteredUserProvider,
-    MediaProvider, MediaRepository, TaskProvider, TasksProvider, TeamByMemberProvider,
-    TeamProvider, TeamRepository, UserProvider, UserRepository,
-};
-use crate::domain::models::{
-    Answer, AnswerID, AnswerText, Character, CharacterFact, CharacterID, CharacterLegacy,
-    CharacterName, CharacterQuote, CorrectAnswer, Feedback, FileID, FullName, GroupName,
-    LevenshteinDistance, Media, MediaID, MediaType as DomainMediaType,
-    ParticipantStatus as DomainParticipationMode, Points, SerialNumber, Task, TaskID, TaskText,
-    TaskType as DomainTaskType, Team, TeamID, TeamName, User, UserID, Username,
-};
+use crate::app::ports::{CharactersProvider, FeedbackRepository, IsAdminProvider, IsRegisteredUserProvider, MediaProvider, MediaRepository, TaskProvider, TeamByMemberProvider, TeamProvider, TeamRepository, TrackProvider, UserProvider, UserRepository};
+use crate::domain::models::{Character, CharacterFact, CharacterID, CharacterLegacy, CharacterName, CharacterQuote, Feedback, FileID, FullName, GroupName, Media, MediaID, MediaType as DomainMediaType, SerialNumber, TaskOption, Team, TeamID, TeamName, Track, TrackDescription, TrackTag as DomainTrackTag, User, UserID, Username, TaskType as DomainTaskType};
 use crate::{with_client, with_transaction};
+use crate::app::usecases::AnswerTask;
 
 pub struct PostgresRepository {
     pool: Pool,
@@ -34,7 +27,6 @@ struct UserRow {
     username: Option<String>,
     full_name: String,
     group_name: String,
-    mode: ParticipationMode,
     team_id: Option<String>,
 }
 
@@ -45,7 +37,6 @@ impl UserRow {
             username: row.try_get("username")?,
             full_name: row.try_get("full_name")?,
             group_name: row.try_get("group_name")?,
-            mode: row.try_get("mode")?,
             team_id: row.try_get("team_id")?,
         })
     }
@@ -55,6 +46,7 @@ struct TeamRow {
     id: String,
     name: String,
     captain_id: i64,
+    hint_points: i32,
 }
 
 impl TeamRow {
@@ -63,6 +55,45 @@ impl TeamRow {
             id: row.try_get("id")?,
             name: row.try_get("name")?,
             captain_id: row.try_get("captain_id")?,
+            hint_points: row.try_get("hint_points")?,
+        })
+    }
+}
+
+struct AnswerRow {
+    team_id: String,
+    task_id: i32,
+    text: String,
+    points: i32,
+    created_at: DateTime<Utc>,
+}
+
+impl AnswerRow {
+    pub fn fetch_from_row(row: &Row) -> Result<AnswerRow, tokio_postgres::Error> {
+        Ok(Self {
+            team_id: row.try_get("team_id")?,
+            task_id: row.try_get("task_id")?,
+            text: row.try_get("text")?,
+            points: row.try_get("points")?,
+            created_at: row.try_get("created_at")?,
+        })
+    }
+}
+
+struct TeamStartedTrackRow {
+    team_id: String,
+    track_tag: TrackTag,
+    started_at: DateTime<Utc>,
+    finished_at: Option<DateTime<Utc>>
+}
+
+impl TeamStartedTrackRow {
+    pub fn fetch_from_row(row: &Row) -> Result<TeamStartedTrackRow, tokio_postgres::Error> {
+        Ok(Self {
+            team_id: row.try_get("team_id")?,
+            track_tag: row.try_get("track_tag")?,
+            started_at: row.try_get("started_at")?,
+            finished_at: row.try_get("finished_at")?,
         })
     }
 }
@@ -108,77 +139,6 @@ impl MediaRow {
     }
 }
 
-#[derive(Debug, ToSql, FromSql)]
-#[postgres(name = "task_type", rename_all = "snake_case")]
-enum TaskType {
-    Rebus,
-    Riddle,
-}
-
-impl From<DomainTaskType> for TaskType {
-    fn from(value: DomainTaskType) -> Self {
-        match value {
-            DomainTaskType::Rebus => TaskType::Rebus,
-            DomainTaskType::Riddle => TaskType::Riddle,
-        }
-    }
-}
-
-impl Into<DomainTaskType> for TaskType {
-    fn into(self) -> DomainTaskType {
-        match self {
-            TaskType::Rebus => DomainTaskType::Rebus,
-            TaskType::Riddle => DomainTaskType::Riddle,
-        }
-    }
-}
-
-struct TaskRow {
-    id: String,
-    index: i32,
-    task_type: TaskType,
-    media_id: String,
-    explanation: String,
-    correct_answer: String,
-    points: i32,
-    max_levenshtein_distance: i32,
-}
-
-impl TaskRow {
-    pub fn fetch_from_row(row: &Row) -> Result<TaskRow, tokio_postgres::Error> {
-        Ok(TaskRow {
-            id: row.try_get("id")?,
-            index: row.try_get("index")?,
-            task_type: row.try_get("task_type")?,
-            media_id: row.try_get("media_id")?,
-            explanation: row.try_get("explanation")?,
-            correct_answer: row.try_get("correct_answer")?,
-            points: row.try_get("points")?,
-            max_levenshtein_distance: row.try_get("max_levenshtein_distance")?,
-        })
-    }
-}
-
-struct AnswerRow {
-    id: String,
-    task_id: String,
-    text: String,
-    points: i32,
-    created_at: DateTime<Utc>,
-}
-
-impl AnswerRow {
-    pub fn fetch_from_row(row: &Row) -> Result<AnswerRow, tokio_postgres::Error> {
-        Ok(AnswerRow {
-            id: row.try_get("id")?,
-            task_id: row.try_get("task_id")?,
-            text: row.try_get("text")?,
-            points: row.try_get("points")?,
-            created_at: row.try_get("created_at")?,
-        })
-    }
-}
-
 struct CharacterRow {
     id: String,
     index: i32,
@@ -216,22 +176,110 @@ impl CharacterFactRow {
 }
 
 #[derive(Debug, ToSql, FromSql)]
-#[postgres(name = "participation_mode", rename_all = "snake_case")]
-enum ParticipationMode {
-    Solo,
-    WantTeam,
-    Team,
+#[postgres(name = "track_tag", rename_all = "snake_case")]
+enum TrackTag {
+    Muzhestvo,
+    Volya,
+    Trud,
+    Uporstvo,
+    Universitet,
 }
 
-impl From<DomainParticipationMode> for ParticipationMode {
-    fn from(value: DomainParticipationMode) -> Self {
-        match value {
-            DomainParticipationMode::Solo => ParticipationMode::Solo,
-            DomainParticipationMode::LookingForTeam => ParticipationMode::WantTeam,
-            DomainParticipationMode::Team(_) => ParticipationMode::Team,
+impl From<DomainTrackTag> for TrackTag {
+    fn from(v: DomainTrackTag) -> Self {
+        match v {
+            DomainTrackTag::Muzhestvo => Self::Muzhestvo,
+            DomainTrackTag::Volya => Self::Volya,
+            DomainTrackTag::Trud => Self::Trud,
+            DomainTrackTag::Uporstvo => Self::Uporstvo,
+            DomainTrackTag::Universitet => Self::Universitet,
         }
     }
 }
+
+impl Into<DomainTrackTag> for TrackTag {
+    fn into(self) -> DomainTrackTag {
+        match self {
+            Self::Muzhestvo => DomainTrackTag::Muzhestvo,
+            Self::Volya => DomainTrackTag::Volya,
+            Self::Trud => DomainTrackTag::Trud,
+            Self::Uporstvo => DomainTrackTag::Uporstvo,
+            Self::Universitet => DomainTrackTag::Universitet,
+        }
+    }
+}
+
+struct TrackRow {
+    tag: TrackTag,
+    description: String,
+    media_id: String,
+}
+
+impl TrackRow {
+    pub fn fetch_from_row(row: &Row) -> Result<TrackRow, tokio_postgres::Error> {
+        Ok(Self {
+            tag: row.try_get("tag")?,
+            description: row.try_get("description")?,
+            media_id: row.try_get("media_id")?,
+        })
+    }
+}
+
+#[derive(Debug, ToSql, FromSql)]
+#[postgres(name = "task_type", rename_all = "snake_case")]
+enum TaskType {
+    Text,
+    Choice,
+    Photo,
+}
+
+impl From<DomainTaskType> for TaskType {
+    fn from(v: DomainTaskType) -> Self {
+        match v {
+            DomainTaskType::Text => TaskType::Text,
+            DomainTaskType::Choice => TaskType::Choice,
+            DomainTaskType::Photo => TaskType::Photo,
+        }
+    }
+}
+
+impl Into<DomainTaskType> for TaskType {
+    fn into(self) -> DomainTaskType {
+        match self {
+            TaskType::Text => DomainTaskType::Text,
+            TaskType::Choice => DomainTaskType::Choice,
+            TaskType::Photo => DomainTaskType::Photo,
+        }
+    }
+}
+
+struct TaskRow {
+    id: i32,
+    task_type: TaskType,
+    question: String,
+    explanation: String,
+    media_id: Option<String>,
+    points: i32,
+    price: i32,
+    max_lvnsht_d: i32,
+}
+
+impl TaskRow {
+    pub fn fetch_from_row(row: &Row) -> Result<TaskRow, tokio_postgres::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            task_type: row.try_get("task_type")?,
+            question: row.try_get("question")?,
+            explanation: row.try_get("explanation")?,
+            media_id: row.try_get("media_id")?,
+            points: row.try_get("points")?,
+            price: row.try_get("price")?,
+            max_lvnsht_d: row.try_get("max_lvnsht_d")?,
+        })
+    }
+}
+
+
 
 #[async_trait::async_trait]
 impl UserProvider for PostgresRepository {
@@ -245,7 +293,6 @@ impl UserProvider for PostgresRepository {
                         username,
                         full_name,
                         group_name,
-                        mode,
                         team_id
                     FROM users
                     WHERE 
@@ -262,56 +309,12 @@ impl UserProvider for PostgresRepository {
 
                 let username = user_row.username.map(|s| Username::new(s)).transpose()?;
 
-                let rows = client
-                    .query(
-                        r#"
-                        SELECT
-                            id,
-                            task_id,
-                            text,
-                            points,
-                            created_at
-                        FROM answers
-                        WHERE
-                            user_id = $1
-                        "#,
-                        &[&id.as_i64()],
-                    )
-                    .await
-                    .map_err(|err| AppError::Internal(err.into()))?;
-
-                let mut answers = Vec::new();
-                for row in rows {
-                    let row = AnswerRow::fetch_from_row(&row)
-                        .map_err(|err| AppError::Internal(err.into()))?;
-                    let answer = Answer::restore(
-                        AnswerID::try_from(row.id)?,
-                        TaskID::try_from(row.task_id)?,
-                        AnswerText::new(row.text),
-                        Points::new(row.points)?,
-                        row.created_at,
-                    );
-                    answers.push(answer);
-                }
-
-                let mode = match user_row.mode {
-                    ParticipationMode::Solo => DomainParticipationMode::Solo,
-                    ParticipationMode::WantTeam => DomainParticipationMode::LookingForTeam,
-                    ParticipationMode::Team => {
-                        let team_id = user_row
-                            .team_id
-                            .expect("expected team_id if user in team mode");
-                        DomainParticipationMode::Team(TeamID::try_from(team_id)?)
-                    }
-                };
-
-                Ok(User::restore(
+                Ok(User::new(
                     UserID::new(user_row.id),
                     username,
                     FullName::new(user_row.full_name)?,
                     GroupName::new(user_row.group_name)?,
-                    answers,
-                    mode,
+                    user_row.team_id.map(|s| TeamID::try_from(s)).transpose()?,
                 ))
             } else {
                 Err(AppError::UserNotFound(id.as_i64()))
@@ -352,7 +355,8 @@ impl TeamProvider for PostgresRepository {
                     SELECT
                         id,
                         name,
-                        captain_id
+                        captain_id,
+                        hint_points
                     FROM teams
                     WHERE
                         id = $1
@@ -394,11 +398,82 @@ impl TeamProvider for PostgresRepository {
                 .map(|int_id| UserID::new(int_id))
                 .collect();
 
+            let rows = client
+                .query(
+                    r#"
+                    SELECT
+                        team_id,
+                        task_id,
+                        text,
+                        points,
+                        created_at
+                    FROM answers
+                    WHERE
+                        team_id = $1
+                    "#,
+                    &[&id.as_str()],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+            
+            let answer_rows = rows.iter()
+                .map(|row| AnswerRow::fetch_from_row(&row))
+                .collect::<Result<Vec<_>, tokio_postgres::Error>>()
+                .map_err(|err| AppError::Internal(err.into()))?;
+            
+            let mut answers = Vec::new();
+            for row in answer_rows {
+                let answer = Answer::restore(
+                    row.task_id,
+                    AnswerText::new(row.text),
+                    Points::new(row.points)?,
+                    row.created_at,
+                );
+                answers.push(answer);
+            }
+            
+            let rows = client
+                .query(
+                    r#"
+                    SELECT
+                        team_id,
+                        track_tag,
+                        started_at,
+                        finished_at
+                    FROM team_started_tracks
+                    WHERE
+                        team_id = $1
+                    "#,
+                    &[&id.as_str()],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            let started_track_rows = rows
+                .iter()
+                .map(|row| TeamStartedTrackRow::fetch_from_row(&row))
+                .collect::<Result<Vec<_>, tokio_postgres::Error>>()
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            let mut started_tracks = HashMap::new();
+            for row in started_track_rows {
+                let track_status = if let Some(finished_at) = row.finished_at {
+                    TrackStatus::Finished(row.started_at, finished_at)
+                } else {
+                    TrackStatus::Started(row.started_at)
+                };
+                let tag: DomainTrackTag = row.track_tag.into();
+                started_tracks.insert(tag, track_status);
+            }
+
             let team = Team::restore(
                 TeamID::try_from(team_row.id)?,
                 TeamName::new(team_row.name)?,
                 UserID::new(team_row.captain_id),
                 member_ids,
+                answers,
+                started_tracks,
+                Points::new(team_row.hint_points)?,
             )?;
 
             Ok(team)
@@ -416,7 +491,8 @@ impl TeamByMemberProvider for PostgresRepository {
                     SELECT
                         t.id,
                         t.name,
-                        t.captain_id
+                        t.captain_id,
+                        t.hint_points
                     FROM teams t
                     LEFT JOIN
                         users u
@@ -461,11 +537,82 @@ impl TeamByMemberProvider for PostgresRepository {
                 .map(|int_id| UserID::new(int_id))
                 .collect();
 
+            let rows = client
+                .query(
+                    r#"
+                    SELECT
+                        team_id,
+                        task_id,
+                        text,
+                        points,
+                        created_at
+                    FROM answers
+                    WHERE
+                        team_id = $1
+                    "#,
+                    &[&team_row.id.as_str()],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+            
+            let answer_rows = rows.iter()
+                .map(|row| AnswerRow::fetch_from_row(&row))
+                .collect::<Result<Vec<_>, tokio_postgres::Error>>()
+                .map_err(|err| AppError::Internal(err.into()))?;
+            
+            let mut answers = Vec::new();
+            for row in answer_rows {
+                let answer = Answer::restore(
+                    row.task_id,
+                    AnswerText::new(row.text),
+                    Points::new(row.points)?,
+                    row.created_at,
+                );
+                answers.push(answer);
+            }
+            
+             let rows = client
+                .query(
+                    r#"
+                    SELECT
+                        team_id,
+                        track_tag,
+                        started_at,
+                        finished_at
+                    FROM team_started_tracks
+                    WHERE
+                        team_id = $1
+                    "#,
+                    &[&team_row.id.as_str()],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            let started_track_rows = rows
+                .iter()
+                .map(|row| TeamStartedTrackRow::fetch_from_row(&row))
+                .collect::<Result<Vec<_>, tokio_postgres::Error>>()
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            let mut started_tracks = HashMap::new();
+            for row in started_track_rows {
+                let track_status = if let Some(finished_at) = row.finished_at {
+                    TrackStatus::Finished(row.started_at, finished_at)
+                } else {
+                    TrackStatus::Started(row.started_at)
+                };
+                let tag: DomainTrackTag = row.track_tag.into();
+                started_tracks.insert(tag, track_status);
+            }
+
             let team = Team::restore(
                 TeamID::try_from(team_row.id)?,
                 TeamName::new(team_row.name)?,
                 UserID::new(team_row.captain_id),
                 member_ids,
+                answers,
+                started_tracks,
+                Points::new(team_row.hint_points)?,
             )?;
 
             Ok(Some(team))
@@ -477,7 +624,6 @@ impl TeamByMemberProvider for PostgresRepository {
 impl UserRepository for PostgresRepository {
     async fn save_user(&self, user: User) -> Result<(), AppError> {
         with_transaction!(self.pool, async |tx: &Transaction| {
-            let mode = ParticipationMode::from(user.status().clone());
             tx.execute(
                 r#"
                 INSERT INTO 
@@ -485,66 +631,24 @@ impl UserRepository for PostgresRepository {
                         id,
                         username,
                         full_name,
-                        group_name,
-                        mode
+                        group_name
                     )
                 VALUES
                     ($1, $2, $3, $4, $5)
                 ON CONFLICT (id) DO UPDATE SET
                     username = $2, 
                     full_name = $3, 
-                    group_name = $4,
-                    mode = $5
+                    group_name = $4
                 "#,
                 &[
                     &user.id().as_i64(),
                     &user.username().clone().map(|u| u.to_string()),
                     &user.full_name().to_string(),
                     &user.group_name().to_string(),
-                    &mode,
                 ],
             )
             .await
             .map_err(|err| AppError::Internal(err.into()))?;
-
-            tx.execute(
-                r#"
-                DELETE FROM answers
-                WHERE
-                    user_id = $1
-                "#,
-                &[&user.id().as_i64()],
-            )
-            .await
-            .map_err(|err| AppError::Internal(err.into()))?;
-
-            for answer in user.answers().values() {
-                tx.execute(
-                    r#"
-                    INSERT INTO
-                        answers (
-                            id,
-                            task_id,
-                            user_id,
-                            text,
-                            points,
-                            created_at
-                        )
-                    VALUES
-                        ($1, $2, $3, $4, $5, $6)
-                    "#,
-                    &[
-                        &answer.id().as_str(),
-                        &answer.task_id().as_str(),
-                        &user.id().as_i64(),
-                        &answer.text().as_str(),
-                        &answer.points().as_i32(),
-                        &answer.created_at(),
-                    ],
-                )
-                .await
-                .map_err(|err| AppError::Internal(err.into()))?;
-            }
 
             Ok::<(), AppError>(())
         })
@@ -607,6 +711,89 @@ impl TeamRepository for PostgresRepository {
                 .map_err(|err| AppError::Internal(err.into()))?;
             }
 
+            for (&track_tag, track_status) in team.started_tracks() {
+                match track_status {
+                    TrackStatus::Started(started_at) => {
+                        tx.execute(r#"
+                            INSERT INTO
+                                team_started_tracks (
+                                    team_id,
+                                    track_tag,
+                                    started_at
+                                )
+                            VALUES
+                                ($1, $2, $3)
+                            ON CONFLICT (team_id, track_tag)
+                            DO NOTHING
+                            "#,
+                            &[
+                                &team.id().as_str(),
+                                &TrackTag::from(track_tag),
+                                &started_at,
+                            ],
+                        )
+                        .await
+                        .map_err(|err| AppError::Internal(err.into()))?;
+                    },
+                    TrackStatus::Finished(started_at, finished_at) => {
+                         tx.execute(r#"
+                            INSERT INTO
+                                team_started_tracks (
+                                    team_id,
+                                    track_tag,
+                                    started_at,
+                                    finished_at
+                                )
+                            VALUES
+                                ($1, $2, $3, $4)
+                            ON CONFLICT (team_id, track_tag)
+                            DO UPDATE SET
+                                finished_at = $4
+                            "#,
+                            &[
+                                &team.id().as_str(),
+                                &TrackTag::from(track_tag),
+                                &started_at,
+                                &finished_at,
+                            ],
+                        )
+                        .await
+                        .map_err(|err| AppError::Internal(err.into()))?;
+                    }
+                }
+            }
+            
+            for answer in team.answers() {
+                tx.execute(
+                    r#"
+                    INSERT INTO
+                        answers (
+                            team_id,
+                            task_id,
+                            text,
+                            points,
+                            created_at
+                        )
+                    VALUES
+                        ($1, $2, $3, $4, $5)
+                    ON CONFLICT (team_id, task_id)
+                    DO UPDATE SET
+                        text = $3,
+                        points = $4,
+                        created_at = $5
+                    "#,
+                    &[
+                        &team.id().as_str(),
+                        &answer.task_id(),
+                        &answer.text().as_str(),
+                        &answer.points().as_i32(),
+                        &answer.created_at(),
+                    ]
+                )
+                    .await
+                    .map_err(|err| AppError::Internal(err.into()))?;
+            }
+            
             Ok::<(), AppError>(())
         })
     }
@@ -711,100 +898,6 @@ impl IsAdminProvider for PostgresRepository {
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
             Ok(row.is_some())
-        })
-    }
-}
-
-#[async_trait::async_trait]
-impl TaskProvider for PostgresRepository {
-    async fn task(&self, id: TaskID) -> Result<Task, AppError> {
-        with_client!(self.pool, async |client: &Client| {
-            let row_opt = client
-                .query_opt(
-                    r#"
-                    SELECT
-                        id,
-                        index,
-                        task_type,
-                        media_id,
-                        explanation,
-                        correct_answer,
-                        points,
-                        max_levenshtein_distance
-                    FROM tasks
-                    WHERE
-                        id = $1
-                    "#,
-                    &[&id.as_str()],
-                )
-                .await
-                .map_err(|err| AppError::Internal(err.into()))?;
-
-            if let Some(row) = row_opt {
-                let task_row =
-                    TaskRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
-                let task = Task::restore(
-                    TaskID::try_from(task_row.id)?,
-                    task_row.index as SerialNumber,
-                    task_row.task_type.into(),
-                    MediaID::new(task_row.media_id)?,
-                    TaskText::new(task_row.explanation)?,
-                    CorrectAnswer::new(task_row.correct_answer)?,
-                    Points::new(task_row.points)?,
-                    task_row.max_levenshtein_distance as LevenshteinDistance,
-                );
-                Ok(task)
-            } else {
-                Err(AppError::TaskNotFound(id))
-            }
-        })
-    }
-}
-
-#[async_trait::async_trait]
-impl TasksProvider for PostgresRepository {
-    async fn tasks(&self, task_type: DomainTaskType) -> Result<Vec<Task>, AppError> {
-        with_client!(self.pool, async |client: &Client| {
-            let task_type: TaskType = task_type.into();
-            let rows = client
-                .query(
-                    r#"
-                    SELECT
-                        id,
-                        index,
-                        task_type,
-                        media_id,
-                        explanation,
-                        correct_answer,
-                        points,
-                        max_levenshtein_distance
-                    FROM tasks
-                    WHERE
-                        task_type = $1
-                    ORDER BY index ASC
-                    "#,
-                    &[&task_type],
-                )
-                .await
-                .map_err(|err| AppError::Internal(err.into()))?;
-
-            let mut tasks = Vec::new();
-            for row in rows {
-                let task_row =
-                    TaskRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
-                let task = Task::restore(
-                    TaskID::try_from(task_row.id)?,
-                    task_row.index as SerialNumber,
-                    task_row.task_type.into(),
-                    MediaID::new(task_row.media_id)?,
-                    TaskText::new(task_row.explanation)?,
-                    CorrectAnswer::new(task_row.correct_answer)?,
-                    Points::new(task_row.points)?,
-                    task_row.max_levenshtein_distance as LevenshteinDistance,
-                );
-                tasks.push(task);
-            }
-            Ok(tasks)
         })
     }
 }
@@ -959,6 +1052,252 @@ impl FeedbackRepository for PostgresRepository {
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
             Ok(())
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl TrackProvider for PostgresRepository {
+    async fn track(&self, domain_tag: DomainTrackTag) -> Result<Track, AppError> {
+        with_transaction!(self.pool, async |tx: &Transaction| {
+            let tag = TrackTag::from(domain_tag);
+            let row_opt = tx
+                .query_opt(
+                    r#"
+                    SELECT
+                        tag,
+                        description,
+                        media_id
+                    FROM tracks
+                    WHERE
+                        tag = $1
+                    "#,
+                    &[&tag],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            if let Some(row) = row_opt {
+                let track_row = TrackRow::fetch_from_row(&row)
+                    .map_err(|err| AppError::Internal(err.into()))?;
+
+                let rows = tx
+                    .query(
+                        r#"
+                        SELECT
+                            id,
+                            task_type,
+                            question,
+                            explanation,
+                            media_id,
+                            points,
+                            price,
+                            max_lvnsht_d
+                        FROM tasks
+                        WHERE
+                            track_tag = $1
+                        "#,
+                        &[&tag]
+                    )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+                let mut tasks = Vec::new();
+                for row in rows {
+                    let task_row = TaskRow::fetch_from_row(&row)
+                        .map_err(|err| AppError::Internal(err.into()))?;
+
+                    let option_rows = tx
+                        .query(
+                            r#"
+                            SELECT option
+                            FROM task_options
+                            WHERE task_id = $1
+                            "#,
+                            &[&task_row.id],
+                        )
+                        .await
+                        .map_err(|err| AppError::Internal(err.into()))?;
+
+                    let mut options = Vec::new();
+                    for option_row in option_rows {
+                        let option = TaskOption::new(option_row.try_get("option").map_err(|err| AppError::Internal(err.into()))?)?;
+                        options.push(option);
+                    }
+
+                    let dependencies_rows = tx
+                        .query(
+                            r#"
+                            SELECT dependency
+                            FROM   task_dependencies
+                            WHERE  task_id = $1
+                            "#,
+                        &[&task_row.id],
+                        )
+                        .await
+                        .map_err(|err| AppError::Internal(err.into()))?;
+
+                    let mut dependencies = Vec::new();
+                    for dependencies_row in dependencies_rows {
+                        let dependency: i32 = dependencies_row.try_get("dependency")
+                            .map_err(|err| AppError::Internal(err.into()))?;
+                        dependencies.push(dependency as TaskID);
+                    }
+                    
+                    let correct_answer_rows = tx
+                        .query(
+                            r#"
+                            SELECT answer
+                            FROM   task_correct_answers
+                            WHERE  task_id = $1
+                            "#,
+                        &[&task_row.id],
+                        )
+                        .await
+                        .map_err(|err| AppError::Internal(err.into()))?;
+
+                    let mut correct_answers = Vec::new();
+                    for row in correct_answer_rows {
+                        let text = row.try_get("answer")
+                            .map_err(|err| AppError::Internal(err.into()))?;
+                        let answer = CorrectAnswer::new(text)?;
+                        correct_answers.push(answer);
+                    }
+
+                    let task = Task::new(
+                        task_row.id as TaskID,
+                        task_row.task_type.into(),
+                        TaskText::new(task_row.question)?,
+                        TaskText::new(task_row.explanation)?,
+                        task_row.media_id.map(|m| MediaID::new(m)).transpose()?,
+                        options,
+                        dependencies,
+                        correct_answers,
+                        Points::new(task_row.points)?,
+                        Points::new(task_row.price)?,
+                        task_row.max_lvnsht_d as usize,
+                    );
+                    tasks.push(task);
+                }
+
+                let track = Track::new(
+                    domain_tag,
+                    TrackDescription::new(track_row.description)?,
+                    MediaID::new(track_row.media_id)?,
+                    tasks
+                );
+
+                Ok::<_, AppError>(track)
+            } else {
+                Err(AppError::TrackNotFound(domain_tag))
+            }
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl TaskProvider for PostgresRepository {
+    async fn task(&self, task_id: TaskID) -> Result<Task, AppError> {
+        with_transaction!(self.pool, async |tx: &Transaction| {
+            let row_opt = tx
+                .query_opt(
+                    r#"
+                    SELECT
+                        id,
+                        task_type,
+                        question,
+                        explanation,
+                        media_id,
+                        points,
+                        price,
+                        max_lvnsht_d
+                    FROM tasks
+                    WHERE
+                        id = $1
+                    "#,
+                    &[&task_id]
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            if let Some(row) = row_opt {
+                let task_row = TaskRow::fetch_from_row(&row)
+                    .map_err(|err| AppError::Internal(err.into()))?;
+
+                let option_rows = tx
+                    .query(
+                        r#"
+                        SELECT option
+                        FROM task_options
+                        WHERE task_id = $1
+                        "#,
+                        &[&task_row.id],
+                    )
+                        .await
+                        .map_err(|err| AppError::Internal(err.into()))?;
+
+                    let mut options = Vec::new();
+                    for option_row in option_rows {
+                        let option = TaskOption::new(option_row.try_get("option").map_err(|err| AppError::Internal(err.into()))?)?;
+                        options.push(option);
+                    }
+
+                    let dependencies_rows = tx
+                        .query(
+                            r#"
+                            SELECT dependency
+                            FROM   task_dependencies
+                            WHERE  task_id = $1
+                            "#,
+                        &[&task_row.id],
+                        )
+                        .await
+                        .map_err(|err| AppError::Internal(err.into()))?;
+
+                    let mut dependencies = Vec::new();
+                    for dependencies_row in dependencies_rows {
+                        let dependency: i32 = dependencies_row.try_get("dependency")
+                            .map_err(|err| AppError::Internal(err.into()))?;
+                        dependencies.push(dependency as TaskID);
+                    }
+                
+                    let correct_answer_rows = tx
+                        .query(
+                            r#"
+                            SELECT answer
+                            FROM   task_correct_answers
+                            WHERE  task_id = $1
+                            "#,
+                        &[&task_row.id],
+                        )
+                        .await
+                        .map_err(|err| AppError::Internal(err.into()))?;
+
+                    let mut correct_answers = Vec::new();
+                    for row in correct_answer_rows {
+                        let text = row.try_get("answer")
+                            .map_err(|err| AppError::Internal(err.into()))?;
+                        let answer = CorrectAnswer::new(text)?;
+                        correct_answers.push(answer);
+                    }
+
+                    let task = Task::new(
+                        task_row.id as TaskID,
+                        task_row.task_type.into(),
+                        TaskText::new(task_row.question)?,
+                        TaskText::new(task_row.explanation)?,
+                        task_row.media_id.map(|m| MediaID::new(m)).transpose()?,
+                        options,
+                        dependencies,
+                        correct_answers,
+                        Points::new(task_row.points)?,
+                        Points::new(task_row.price)?,
+                        task_row.max_lvnsht_d as usize,
+                    );
+                    Ok(task)
+            } else {
+                Err(AppError::TaskNotFound(task_id))
+            }
         })
     }
 }

@@ -1,30 +1,26 @@
-use crate::app::usecases::{
-    AnswerTask, CheckAdmin, CheckRegistered, CreateTeam, ExitTeam, GetCharacter, GetCharacterNames,
-    GetMedia, GetProfile, GetTask, GetTeamWithMembers, GetUser, GetUserTask, GetUserTasks,
-    GetUserTeam, GiveFeedback, JoinTeam, RegisterUser, SwitchToLookingForTeam, SwitchToSoloMode,
-    UploadMedia,
-};
+use crate::app::usecases::get_available_tasks::GetAvailableTasks;
+use crate::app::usecases::get_task::GetTask;
+use crate::app::usecases::{AnswerTask, CheckAdmin, CheckRegistered, CheckStartedTrack, GetCharacter, GetCharacterNames, GetMedia, GetProfile, GetAvailableTracks, GetTeamWithMembers, GetTrackInProgress, GetUser, GetUserTeam, GiveFeedback, StartTrack, UploadMedia, GetCompletedTasks, CheckCaptain};
 
 pub struct App {
     pub answer_task: AnswerTask,
     pub check_admin: CheckAdmin,
+    pub check_captain: CheckCaptain,
     pub check_registered: CheckRegistered,
-    pub create_team: CreateTeam,
-    pub exit_team: ExitTeam,
+    pub check_started_track: CheckStartedTrack,
+    pub get_available_tasks: GetAvailableTasks,
+    pub get_available_tracks: GetAvailableTracks,
     pub get_character: GetCharacter,
     pub get_character_names: GetCharacterNames,
+    pub get_completed_tasks: GetCompletedTasks,
     pub get_media: GetMedia,
     pub get_profile: GetProfile,
     pub get_task: GetTask,
     pub get_team_with_members: GetTeamWithMembers,
+    pub get_track_in_progress: GetTrackInProgress,
     pub get_user: GetUser,
-    pub get_user_tasks: GetUserTasks,
-    pub get_user_task: GetUserTask,
     pub get_user_team: GetUserTeam,
     pub give_feedback: GiveFeedback,
-    pub join_team: JoinTeam,
-    pub register_user: RegisterUser,
-    pub switch_to_want_team_mode: SwitchToLookingForTeam,
-    pub switch_to_solo_mode: SwitchToSoloMode,
+    pub start_track: StartTrack,
     pub upload_media: UploadMedia,
 }

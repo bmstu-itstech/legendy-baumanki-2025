@@ -1,4 +1,5 @@
 pub mod commands;
 pub mod menu;
-pub mod registration;
+pub mod tracks;
+
 mod shared;

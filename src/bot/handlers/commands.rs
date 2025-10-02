@@ -1,22 +1,19 @@
 use teloxide::dispatching::UpdateHandler;
 use teloxide::macros::BotCommands;
 use teloxide::prelude::*;
-use teloxide::types::{InputFile, InputMedia, InputMediaPhoto, ParseMode};
+use teloxide::types::ParseMode;
 
 use crate::app::error::AppError;
 use crate::app::usecases::{
-    CheckAdmin, CheckRegistered, GetMedia, GetUser, GetUserTeam, JoinTeam, UploadMedia,
+    CheckAdmin, CheckRegistered, GetMedia, GetUser, UploadMedia,
 };
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::menu::{
-    prompt_menu, send_joining_team_successful, send_team_is_full, send_team_not_exists,
+    prompt_menu,
 };
-use crate::bot::handlers::registration::prompt_pd_agreement;
 use crate::bot::handlers::shared::{send_media_with_caption, send_permission_denied};
-use crate::bot::resources::{RULES_IMAGE_1, RULES_IMAGE_2};
 use crate::bot::{BotHandlerResult, texts};
-use crate::domain::error::DomainError;
-use crate::domain::models::{FileID, Media, MediaID, TeamID, UserID};
+use crate::domain::models::{FileID, Media, MediaID, UserID};
 
 #[derive(BotCommands, Clone)]
 #[command(description = "Команды регистрации")]
@@ -35,112 +32,22 @@ async fn handle_start_command(
     bot: Bot,
     msg: Message,
     dialogue: BotDialogue,
-    command: BotCommand,
     check_registered: CheckRegistered,
-    get_user_team: GetUserTeam,
-    join_team: JoinTeam,
-    get_media: GetMedia,
     get_user: GetUser,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     let registered = check_registered.execute(user_id).await?;
-    let team_id_opt = if let BotCommand::Start(code) = command {
-        if code == "" {
-            None
-        } else {
-            TeamID::try_from(code).ok()
-        }
+    if !registered {
+        send_registration_closed(&bot, &msg).await?;
     } else {
-        None
-    };
-
-    match (registered, team_id_opt) {
-        // Не зарегистрирован и нет кода команды
-        (false, None) => {
-            //send_greeting_message(&bot, &msg, get_media).await?;
-            //prompt_pd_agreement(bot, msg, dialogue, None).await?;
-            send_registration_closed(&bot, &msg).await?;
-        }
-        // Не зарегистрирован и есть код команды в ссылке
-        (false, Some(team_id)) => {
-            //send_greeting_message(&bot, &msg, get_media).await?;
-            //prompt_pd_agreement(bot, msg, dialogue, Some(team_id)).await?;
-            send_registration_closed(&bot, &msg).await?;
-        }
-        // Зарегистрирован и нет кода команды
-        (true, None) => {
-            let user = get_user.execute(user_id).await?;
-            prompt_menu(bot, msg, dialogue, &user).await?;
-        }
-        // Зарегистрирован и есть код команды
-        (true, Some(team_id)) => {
-            match get_user_team.execute(user_id).await? {
-                Some(user_team) => {
-                    if user_team.id == team_id {
-                        send_already_in_this_team(&bot, &msg).await?;
-                    } else {
-                        send_already_in_other_team(&bot, &msg).await?;
-                    }
-                }
-                None => match join_team.execute(user_id, team_id).await {
-                    Err(AppError::DomainError(DomainError::TeamIsFull(_))) => {
-                        send_team_is_full(&bot, &msg).await?;
-                    }
-                    Err(AppError::TeamNotFound(_)) => {
-                        send_team_not_exists(&bot, &msg).await?;
-                    }
-                    Err(err) => return Err(err),
-                    Ok(team) => send_joining_team_successful(&bot, &msg, team.name).await?,
-                },
-            }
-            let user = get_user.execute(user_id).await?;
-            prompt_menu(bot, msg, dialogue, &user).await?;
-        }
+        let user = get_user.execute(user_id).await?;
+        prompt_menu(bot, msg, dialogue, &user).await?;
     }
     Ok(())
 }
 
 async fn send_registration_closed(bot: &Bot, msg: &Message) -> BotHandlerResult {
     bot.send_message(msg.chat.id, texts::REGISTRATION_CLOSED)
-        .parse_mode(ParseMode::Html)
-        .await?;
-    Ok(())
-}
-
-async fn send_greeting_message(bot: &Bot, msg: &Message, get_media: GetMedia) -> BotHandlerResult {
-    let rules_1 = get_media
-        .execute(MediaID::new(RULES_IMAGE_1.to_string()).unwrap())
-        .await?;
-    let rules_2 = get_media
-        .execute(MediaID::new(RULES_IMAGE_2.to_string()).unwrap())
-        .await?;
-    log::debug!("{}", rules_1.file_id().as_str());
-    let media_group = vec![
-        InputMedia::Photo(InputMediaPhoto::new(InputFile::file_id(
-            rules_1.file_id().clone().into(),
-        ))),
-        InputMedia::Photo(InputMediaPhoto::new(InputFile::file_id(
-            rules_2.file_id().clone().into(),
-        ))),
-    ];
-
-    bot.send_media_group(msg.chat.id, media_group).await?;
-
-    bot.send_message(msg.chat.id, texts::GREETING_MSG)
-        .parse_mode(ParseMode::Html)
-        .await?;
-    Ok(())
-}
-
-async fn send_already_in_this_team(bot: &Bot, msg: &Message) -> BotHandlerResult {
-    bot.send_message(msg.chat.id, texts::ALREADY_IN_THIS_TEAM)
-        .parse_mode(ParseMode::Html)
-        .await?;
-    Ok(())
-}
-
-async fn send_already_in_other_team(bot: &Bot, msg: &Message) -> BotHandlerResult {
-    bot.send_message(msg.chat.id, texts::ALREADY_IN_OTHER_TEAM)
         .parse_mode(ParseMode::Html)
         .await?;
     Ok(())

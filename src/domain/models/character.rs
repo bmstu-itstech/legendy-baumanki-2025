@@ -1,7 +1,8 @@
 use crate::domain::error::DomainError;
-use crate::domain::models::{MediaID, SerialNumber};
+use crate::domain::models::MediaID;
 use crate::utils::uuid::new_pseudo_uuid;
 use crate::{not_empty_string_impl, pseudo_uuid_impl};
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -23,6 +24,8 @@ not_empty_string_impl!(CharacterFact);
 #[derive(Clone)]
 pub struct CharacterLegacy(String);
 not_empty_string_impl!(CharacterLegacy);
+
+pub type SerialNumber = u32;
 
 pub struct Character {
     id: CharacterID,

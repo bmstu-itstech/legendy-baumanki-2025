@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Div};
 
 use crate::domain::error::DomainError;
 
@@ -21,6 +21,14 @@ impl Points {
 
     pub fn as_i32(&self) -> i32 {
         self.0
+    }
+    
+    pub fn is_positive(&self) -> bool {
+        self.0 > 0
+    }
+    
+    pub fn is_zero(&self) -> bool {
+        self.0 == 0
     }
 }
 
