@@ -12,7 +12,7 @@ use crate::bot::keyboards::{
 };
 use crate::bot::{BotHandlerResult, keyboards, texts};
 use crate::bot::handlers::tracks::prompt_track;
-use crate::domain::models::{CharacterName, FeedbackText, TrackTag, UserID};
+use crate::domain::models::{CharacterName, FeedbackText, UserID};
 
 pub async fn prompt_menu(
     bot: Bot,
@@ -36,7 +36,6 @@ async fn receive_menu_option(
     get_user: GetUser,
     get_user_team: GetUserTeam,
     get_team_with_members: GetTeamWithMembers,
-    get_profile: GetProfile,
     get_character_names: GetCharacterNames,
     get_available_tracks: GetAvailableTracks,
 ) -> BotHandlerResult {
@@ -44,15 +43,12 @@ async fn receive_menu_option(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
         Some(text) => match text {
-            keyboards::BTN_PROFILE => {
-                let profile = get_profile.execute(user_id).await?;
-                send_profile(&bot, &msg, &profile).await?;
-                prompt_menu(bot, msg, dialogue, &profile.user).await?;
-            }
             keyboards::BTN_MY_TEAM => {
                 if let Some(team) = get_user_team.execute(user_id).await? {
                     let team = get_team_with_members.execute(team.id).await?;
-                    send_my_team(&bot, &msg, team).await?;
+                    if !team.solo {
+                        send_my_team(&bot, &msg, team).await?;
+                    }
                     let user = get_user.execute(user_id).await?;
                     prompt_menu(bot, msg, dialogue, &user).await?;
                 }
@@ -89,13 +85,6 @@ async fn send_my_team(
     team: TeamWithMembersDTO,
 ) -> BotHandlerResult {
     bot.send_message(msg.chat.id, texts::my_team(team))
-        .parse_mode(ParseMode::Html)
-        .await?;
-    Ok(())
-}
-
-async fn send_profile(bot: &Bot, msg: &Message, profile: &Profile) -> BotHandlerResult {
-    bot.send_message(msg.chat.id, texts::profile(profile))
         .parse_mode(ParseMode::Html)
         .await?;
     Ok(())

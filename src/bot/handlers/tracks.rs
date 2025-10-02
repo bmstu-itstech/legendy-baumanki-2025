@@ -30,6 +30,7 @@ async fn receive_track(
     check_started_track: CheckStartedTrack,
     get_track_in_progress: GetTrackInProgress,
     check_captain: CheckCaptain,
+    get_available_tracks: GetAvailableTracks,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
@@ -41,18 +42,29 @@ async fn receive_track(
         Some(text) => {
             if let Some(tag) = TrackTag::try_parse(text) {
                 let started= check_started_track.execute(user_id, tag).await?;
+                let is_captain = check_captain.execute(user_id).await?;
                 if started {
                     let track = get_track_in_progress.execute(user_id, tag).await?;
-                    let is_captain = check_captain.execute(user_id).await?;
                     prompt_track_task_groups(bot, msg, dialogue, &track, is_captain).await
-                } else {
+                } else if is_captain {
                     prompt_track_start(bot, msg, dialogue, tag).await
+                } else {
+                    send_track_is_not_started(&bot, &msg).await?;
+                    let tracks = get_available_tracks.execute(user_id).await?;
+                    prompt_track(bot, msg, dialogue, &tracks).await
                 }
             } else {
                 send_use_keyboard(&bot, &msg).await
             }
         }
     }
+}
+
+async fn send_track_is_not_started(bot: &Bot, msg: &Message) -> BotHandlerResult {
+    bot.send_message(msg.chat.id, texts::TRACK_NOT_STARTED)
+        .parse_mode(ParseMode::Html)
+        .await?;
+    Ok(())
 }
 
 async fn prompt_track_start(bot: Bot, msg: Message, dialogue: BotDialogue, tag: TrackTag) -> BotHandlerResult {
@@ -113,6 +125,7 @@ async fn receive_tasks_group(
     get_available_tasks: GetAvailableTasks,
     get_completed_tasks: GetCompletedTasks,
     get_available_tracks: GetAvailableTracks,
+    check_captain: CheckCaptain,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
@@ -134,9 +147,8 @@ async fn receive_tasks_group(
         Some(keyboards::BTN_COMPLETED_TASKS) => {
             let completed_tasks = get_completed_tasks.execute(user_id, tag).await?;
             if completed_tasks.is_empty() {
-                send_no_tasks_completed(&bot, &msg).await?;
-                let tracks = get_available_tracks.execute(user_id).await?;
-                prompt_track(bot, msg, dialogue, &tracks).await
+                let is_captain = check_captain.execute(user_id).await?;
+                send_no_tasks_completed(&bot, &msg, is_captain).await
             } else {
                 prompt_completed_task(bot, msg, dialogue, tag, &completed_tasks).await
             }
@@ -152,8 +164,9 @@ async fn send_all_task_completed(bot: &Bot, msg: &Message) -> BotHandlerResult {
     Ok(())
 }
 
-async fn send_no_tasks_completed(bot: &Bot, msg: &Message) -> BotHandlerResult {
+async fn send_no_tasks_completed(bot: &Bot, msg: &Message, is_captain: bool) -> BotHandlerResult {
     bot.send_message(msg.chat.id, texts::NO_COMPLETED_TASKS)
+        .reply_markup(make_tasks_group_keyboard_with_back(is_captain))
         .parse_mode(ParseMode::Html)
         .await?;
     Ok(())
@@ -183,14 +196,16 @@ async fn receive_available_task(
     dialogue: BotDialogue,
     tag: TrackTag,
     get_task: GetTask,
-    get_available_tracks: GetAvailableTracks,
+    get_track_in_progress: GetTrackInProgress,
+    check_captain: CheckCaptain,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
         None => send_enter_message(&bot, &msg).await,
         Some(keyboards::BTN_BACK) => {
-            let tracks = get_available_tracks.execute(user_id).await?;
-            prompt_track(bot, msg, dialogue, &tracks).await
+            let track = get_track_in_progress.execute(user_id, tag).await?;
+            let is_captain = check_captain.execute(user_id).await?;
+            prompt_track_task_groups(bot, msg, dialogue, &track, is_captain).await
         }
         Some(text) => match text.strip_prefix(BTN_TASK_ID_PREFIX) {
             None => send_use_keyboard(&bot, &msg).await,
@@ -211,15 +226,17 @@ async fn receive_completed_task(
     dialogue: BotDialogue,
     tag: TrackTag,
     get_task: GetTask,
-    get_available_tracks: GetAvailableTracks,
     get_completed_tasks: GetCompletedTasks,
+    get_track_in_progress: GetTrackInProgress,
+    check_captain: CheckCaptain,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
         None => send_enter_message(&bot, &msg).await,
         Some(keyboards::BTN_BACK) => {
-            let tracks = get_available_tracks.execute(user_id).await?;
-            prompt_track(bot, msg, dialogue, &tracks).await
+            let track = get_track_in_progress.execute(user_id, tag).await?;
+            let is_captain = check_captain.execute(user_id).await?;
+            prompt_track_task_groups(bot, msg, dialogue, &track, is_captain).await
         }
         Some(text) => match text.strip_prefix(BTN_TASK_ID_PREFIX) {
             None => send_use_keyboard(&bot, &msg).await,
@@ -256,16 +273,16 @@ async fn receive_task_answer(
     msg: Message,
     dialogue: BotDialogue,
     (tag, task_id): (TrackTag, TaskID),
-    get_track_in_progress: GetTrackInProgress,
     answer_task: AnswerTask,
     get_task: GetTask,
+    get_available_tasks: GetAvailableTasks,
 ) -> BotHandlerResult {
     let user_id = UserID::new(msg.chat.id.0);
     match msg.text() {
         None => send_enter_message(&bot, &msg).await,
         Some(keyboards::BTN_BACK) => {
-            let track = get_track_in_progress.execute(user_id, tag).await?;
-            prompt_track_task_groups(bot, msg, dialogue, &track, true).await
+            let tasks = get_available_tasks.execute(user_id, tag).await?;
+            prompt_available_task(bot, msg, dialogue, tag, &tasks).await
         }
         Some(text) => {
             let answer = answer_task.execute(user_id, tag, task_id, text.into()).await?;
@@ -273,8 +290,8 @@ async fn receive_task_answer(
                 send_answer_is_correct(&bot, &msg).await?;
                 let task = get_task.execute(task_id).await?;
                 send_task_explanation(&bot, &msg, &task).await?;
-                let track = get_track_in_progress.execute(user_id, tag).await?;
-                prompt_track_task_groups(bot, msg, dialogue, &track, true).await
+                let tasks = get_available_tasks.execute(user_id, tag).await?;
+                prompt_available_task(bot, msg, dialogue, tag, &tasks).await
             } else {
                 send_answer_is_invalid(&bot, &msg).await
             }

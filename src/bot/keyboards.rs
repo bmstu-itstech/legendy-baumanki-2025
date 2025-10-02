@@ -1,7 +1,6 @@
-use teloxide::types::{KeyboardButton, KeyboardMarkup, ReplyMarkup};
+use teloxide::types::{KeyboardButton, KeyboardMarkup};
 
 use crate::app::usecases::dto::UserDTO;
-use crate::app::usecases::StartTrack;
 use crate::domain::models::{CharacterName, TaskID, TaskOption, TrackTag};
 
 type StaticStr = &'static str;
@@ -119,11 +118,11 @@ pub fn make_menu_keyboard(user: &UserDTO) -> KeyboardMarkup {
 
     buttons.push(vec![KeyboardButton::new(BTN_TRACKS)]);
     
-    let mut first = vec![KeyboardButton::new(BTN_PROFILE)];
-    if user.team_id.is_some() { 
-        first.push(KeyboardButton::new(BTN_MY_TEAM));
-    }
-    buttons.push(first);
+    //let mut first = vec![KeyboardButton::new(BTN_PROFILE)];
+    //if user.team_id.is_some() { 
+    //    first.push(KeyboardButton::new(BTN_MY_TEAM));
+    //}
+    //buttons.push(first);
 
     buttons.push(vec![KeyboardButton::new(BTN_CHARACTERS)]);
     buttons.push(vec![KeyboardButton::new(BTN_GIVE_FEEDBACK)]);

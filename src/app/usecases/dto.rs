@@ -43,6 +43,7 @@ pub struct Profile {
 
 pub struct TeamWithMembersDTO {
     pub id: TeamID,
+    pub solo: bool,
     pub name: TeamName,
     pub size: usize,
     pub max_size: usize,

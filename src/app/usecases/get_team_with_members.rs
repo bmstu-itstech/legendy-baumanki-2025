@@ -28,6 +28,7 @@ impl GetTeamWithMembers {
         }
         Ok(TeamWithMembersDTO {
             id: team.id().clone(),
+            solo: team.is_solo(),
             name: team.name().clone(),
             size: members.len(),
             max_size: MAX_TEAM_SIZE,

@@ -1,8 +1,7 @@
-use crate::app::usecases::dto::{CharacterDTO, Profile, TaskDTO, TeamWithMembersDTO, TrackDescriptionDTO, TrackInProgressDTO};
+use crate::app::usecases::dto::{CharacterDTO, TaskDTO, TeamWithMembersDTO, TrackDescriptionDTO, TrackInProgressDTO};
 use crate::domain::models::{FileID, TrackStatus};
 use chrono::{Duration, Utc};
 use rand::seq::IndexedRandom;
-use std::fmt::{Debug, format};
 
 type StaticStr = &'static str;
 
@@ -135,31 +134,9 @@ pub const ALL_TRACK_TASKS_COMPLETED: StaticStr = "🎉 <b>Трек заверш�
 pub const NO_COMPLETED_TASKS: StaticStr = "📭 <b>Пусто</b>\n\
     Здесь пока нет ни одного завершённого задания.";
 
-pub fn profile(profile: &Profile) -> String {
-    match &profile.team_name {
-        Some(team_name) => {
-            format!(
-                "📋 <b>Твой профиль:</b>\n\
-                 • ФИО: {}\n\
-                 • Группа: {}\n\
-                 • Команда: {}",
-                profile.user.full_name.as_str(),
-                profile.user.group_name.as_str(),
-                team_name.as_str()
-            )
-        }
-        None => {
-            format!(
-                "📋 <b>Твой профиль:</b>\n\
-                 • ФИО: {}\n\
-                 • Группа: {}\n\
-                 • Команда: ты не состоишь в команде.",
-                profile.user.full_name.as_str(),
-                profile.user.group_name.as_str(),
-            )
-        }
-    }
-}
+pub const TRACK_NOT_STARTED: StaticStr = "☝🏻<b>Стой! Это трек еще не был запущен вашей командой.</b>\n\
+    \n\
+    ⭐️ Он откроется, как только вы договоритесь командой и капитан начнет его!";
 
 pub fn my_team(team: TeamWithMembersDTO) -> String {
     let usernames_text = team
