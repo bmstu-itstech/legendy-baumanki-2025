@@ -59,20 +59,14 @@ pub const BTN_AVAILABLE_TASKS: StaticStr = "Доступные задания";
 pub const BTN_COMPLETED_TASKS: StaticStr = "Решённые задания";
 
 pub fn make_tasks_group_keyboard_with_back(is_captain: bool) -> KeyboardMarkup {
-    let mut first_row = vec![
-        KeyboardButton::new(BTN_COMPLETED_TASKS),
-    ];
+    let mut first_row = vec![KeyboardButton::new(BTN_COMPLETED_TASKS)];
     if is_captain {
         first_row.push(KeyboardButton::new(BTN_AVAILABLE_TASKS));
     }
-    let buttons = vec![
-        first_row,
-        vec![KeyboardButton::new(BTN_BACK)],
-    ];
+    let buttons = vec![first_row, vec![KeyboardButton::new(BTN_BACK)]];
     KeyboardMarkup::new(buttons)
         .resize_keyboard()
         .one_time_keyboard()
-
 }
 
 pub const BTN_TASK_ID_PREFIX: StaticStr = "Задание ";
@@ -117,9 +111,9 @@ pub fn make_menu_keyboard(user: &UserDTO) -> KeyboardMarkup {
     let mut buttons = Vec::new();
 
     buttons.push(vec![KeyboardButton::new(BTN_TRACKS)]);
-    
+
     //let mut first = vec![KeyboardButton::new(BTN_PROFILE)];
-    //if user.team_id.is_some() { 
+    //if user.team_id.is_some() {
     //    first.push(KeyboardButton::new(BTN_MY_TEAM));
     //}
     //buttons.push(first);

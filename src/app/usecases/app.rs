@@ -1,6 +1,10 @@
 use crate::app::usecases::get_available_tasks::GetAvailableTasks;
 use crate::app::usecases::get_task::GetTask;
-use crate::app::usecases::{AnswerTask, CheckAdmin, CheckRegistered, CheckStartedTrack, GetCharacter, GetCharacterNames, GetMedia, GetProfile, GetAvailableTracks, GetTeamWithMembers, GetTrackInProgress, GetUser, GetUserTeam, GiveFeedback, StartTrack, UploadMedia, GetCompletedTasks, CheckCaptain};
+use crate::app::usecases::{
+    AnswerTask, CheckAdmin, CheckCaptain, CheckRegistered, CheckStartedTrack, GetAvailableTracks,
+    GetCharacter, GetCharacterNames, GetCompletedTasks, GetMedia, GetProfile, GetTeamWithMembers,
+    GetTrackInProgress, GetUser, GetUserTeam, GiveFeedback, StartTrack, UploadMedia,
+};
 
 pub struct App {
     pub answer_task: AnswerTask,

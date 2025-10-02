@@ -1,4 +1,6 @@
-use crate::app::usecases::dto::{CharacterDTO, TaskDTO, TeamWithMembersDTO, TrackDescriptionDTO, TrackInProgressDTO};
+use crate::app::usecases::dto::{
+    CharacterDTO, TaskDTO, TeamWithMembersDTO, TrackDescriptionDTO, TrackInProgressDTO,
+};
 use crate::domain::models::{FileID, TrackStatus};
 use chrono::{Duration, Utc};
 use rand::seq::IndexedRandom;
@@ -259,7 +261,8 @@ pub fn track_menu(track: &TrackInProgressDTO) -> String {
 }
 
 pub fn task_question_and_explanation(task: &TaskDTO) -> String {
-    let answers = task.correct_answers
+    let answers = task
+        .correct_answers
         .iter()
         .map(|a| a.to_string())
         .collect::<Vec<String>>()
@@ -269,7 +272,9 @@ pub fn task_question_and_explanation(task: &TaskDTO) -> String {
         \n\
         <b>Правильный ответ: </b>{}\n\
         \n\
-        {}", 
-        task.question.as_str(), answers, task.explanation.as_str()
+        {}",
+        task.question.as_str(),
+        answers,
+        task.explanation.as_str()
     )
 }

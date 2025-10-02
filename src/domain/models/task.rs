@@ -1,7 +1,7 @@
-use levenshtein::levenshtein;
 use crate::domain::error::DomainError;
 use crate::domain::models::{Answer, AnswerText, MediaID, Points};
 use crate::not_empty_string_impl;
+use levenshtein::levenshtein;
 
 pub type TaskID = i32;
 
@@ -34,7 +34,9 @@ impl CorrectAnswer {
     pub fn new(mut s: String) -> Result<Self, DomainError> {
         s = normalize(s);
         if s.is_empty() {
-            Err(DomainError::InvalidValue("invalid CorrectAnswer: expected not empty string".to_string()))
+            Err(DomainError::InvalidValue(
+                "invalid CorrectAnswer: expected not empty string".to_string(),
+            ))
         } else {
             Ok(Self(s))
         }
@@ -43,7 +45,7 @@ impl CorrectAnswer {
     pub fn as_str(&self) -> &str {
         self.0.as_str()
     }
-    
+
     pub fn to_string(&self) -> String {
         self.0.clone()
     }
@@ -138,7 +140,7 @@ impl Task {
     pub fn price(&self) -> Points {
         self.price
     }
-    
+
     pub fn correct_answers(&self) -> &Vec<CorrectAnswer> {
         &self.correct_answers
     }

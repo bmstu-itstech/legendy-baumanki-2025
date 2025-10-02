@@ -1,7 +1,7 @@
 use crate::domain::models::Points;
-use std::collections::HashMap;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::domain::error::DomainError;
 use crate::domain::models::{Answer, TaskID, TrackTag};
@@ -97,60 +97,67 @@ impl Team {
     pub fn is_solo(&self) -> bool {
         self.member_ids.len() == 1
     }
-    
+
     pub fn available_tracks(&self) -> &'static [TrackTag] {
         if self.is_solo() {
-            &[ TrackTag::Universitet ]
+            &[TrackTag::Universitet]
         } else {
-            &[ TrackTag::Muzhestvo, TrackTag::Volya, TrackTag::Trud, TrackTag::Uporstvo ]
+            &[
+                TrackTag::Muzhestvo,
+                TrackTag::Volya,
+                TrackTag::Trud,
+                TrackTag::Uporstvo,
+            ]
         }
     }
-    
+
     pub fn hint_points(&self) -> Points {
         self.hint_points
     }
-    
+
     pub fn answers(&self) -> Vec<&Answer> {
         self.answers.values().collect()
     }
-    
+
     pub fn started_tracks(&self) -> &HashMap<TrackTag, TrackStatus> {
         &self.started_tracks
     }
-    
+
     pub fn start_track(&mut self, tag: TrackTag) -> Result<(), DomainError> {
         if self.started_tracks.contains_key(&tag) {
-            return Err(DomainError::TrackCanNotBeStarted(tag))
+            return Err(DomainError::TrackCanNotBeStarted(tag));
         }
-        self.started_tracks.insert(tag, TrackStatus::Started(Utc::now()));
+        self.started_tracks
+            .insert(tag, TrackStatus::Started(Utc::now()));
         Ok(())
     }
-    
+
     pub fn finish_track(&mut self, tag: TrackTag) -> Result<(), DomainError> {
         match self.started_tracks.get(&tag) {
             None => Err(DomainError::TrackCanNotBeFinished(tag)),
-            Some(TrackStatus::Finished(_, _)) => {
-                Err(DomainError::TrackCanNotBeFinished(tag))
-            },
+            Some(TrackStatus::Finished(_, _)) => Err(DomainError::TrackCanNotBeFinished(tag)),
             Some(TrackStatus::Started(start)) => {
-                self.started_tracks.insert(tag, TrackStatus::Finished(start.clone(), Utc::now()));
+                self.started_tracks
+                    .insert(tag, TrackStatus::Finished(start.clone(), Utc::now()));
                 Ok(())
             }
         }
     }
-    
+
     pub fn save_answer(&mut self, answer: Answer) {
         self.answers.insert(answer.task_id(), answer);
     }
-    
+
     pub fn track_status(&self, tag: TrackTag) -> Result<&TrackStatus, DomainError> {
-        self.started_tracks.get(&tag).ok_or(DomainError::TrackNotStarted(tag))
+        self.started_tracks
+            .get(&tag)
+            .ok_or(DomainError::TrackNotStarted(tag))
     }
-    
+
     pub fn track_is_started(&self, tag: TrackTag) -> bool {
         self.started_tracks.contains_key(&tag)
     }
-    
+
     pub fn is_captain(&self, user_id: UserID) -> bool {
         self.captain_id == user_id
     }

@@ -1,5 +1,8 @@
 use crate::app::error::AppError;
-use crate::domain::models::{Character, CharacterName, Feedback, Media, MediaID, Task, TaskID, Team, TeamID, Track, TrackTag, User, UserID};
+use crate::domain::models::{
+    Character, CharacterName, Feedback, Media, MediaID, Task, TaskID, Team, TeamID, Track,
+    TrackTag, User, UserID,
+};
 
 #[async_trait::async_trait]
 pub trait UserProvider: Send + Sync {

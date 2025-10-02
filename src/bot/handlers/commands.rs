@@ -4,13 +4,9 @@ use teloxide::prelude::*;
 use teloxide::types::ParseMode;
 
 use crate::app::error::AppError;
-use crate::app::usecases::{
-    CheckAdmin, CheckRegistered, GetMedia, GetUser, UploadMedia,
-};
+use crate::app::usecases::{CheckAdmin, CheckRegistered, GetMedia, GetUser, UploadMedia};
 use crate::bot::fsm::{BotDialogue, BotState};
-use crate::bot::handlers::menu::{
-    prompt_menu,
-};
+use crate::bot::handlers::menu::prompt_menu;
 use crate::bot::handlers::shared::{send_media_with_caption, send_permission_denied};
 use crate::bot::{BotHandlerResult, texts};
 use crate::domain::models::{FileID, Media, MediaID, UserID};

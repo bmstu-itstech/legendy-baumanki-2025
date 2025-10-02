@@ -4,7 +4,12 @@ use teloxide::dispatching::dialogue::{PostgresStorage, serializer};
 use teloxide::prelude::*;
 
 use crate::app::usecases::app::App;
-use crate::app::usecases::{AnswerTask, CheckAdmin, CheckRegistered, CheckStartedTrack, GetAvailableTasks, GetCharacter, GetCharacterNames, GetMedia, GetProfile, GetTask, GetAvailableTracks, GetTeamWithMembers, GetTrackInProgress, GetUser, GetUserTeam, GiveFeedback, StartTrack, UploadMedia, GetCompletedTasks, CheckCaptain};
+use crate::app::usecases::{
+    AnswerTask, CheckAdmin, CheckCaptain, CheckRegistered, CheckStartedTrack, GetAvailableTasks,
+    GetAvailableTracks, GetCharacter, GetCharacterNames, GetCompletedTasks, GetMedia, GetProfile,
+    GetTask, GetTeamWithMembers, GetTrackInProgress, GetUser, GetUserTeam, GiveFeedback,
+    StartTrack, UploadMedia,
+};
 use crate::bot::dispatcher::BotDispatcher;
 use crate::infra::postgres::PostgresRepository;
 use crate::utils::postgres::pool;

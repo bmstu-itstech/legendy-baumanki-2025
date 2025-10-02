@@ -20,10 +20,19 @@ impl StartTrack {
         track_provider: Arc<dyn TrackProvider>,
         media_provider: Arc<dyn MediaProvider>,
     ) -> Self {
-        Self { team_provider, team_repository, track_provider, media_provider }
+        Self {
+            team_provider,
+            team_repository,
+            track_provider,
+            media_provider,
+        }
     }
-    
-    pub async fn execute(&self, user_id: UserID, track_tag: TrackTag) -> Result<TrackInProgressDTO, AppError> {
+
+    pub async fn execute(
+        &self,
+        user_id: UserID,
+        track_tag: TrackTag,
+    ) -> Result<TrackInProgressDTO, AppError> {
         match self.team_provider.team_by_member(user_id).await? {
             Some(mut team) => {
                 team.start_track(track_tag)?;
@@ -40,7 +49,7 @@ impl StartTrack {
                 };
                 self.team_repository.save_team(team).await?;
                 Ok(dto)
-            },
+            }
             None => Err(AppError::UserNotInTeam(user_id)),
         }
     }

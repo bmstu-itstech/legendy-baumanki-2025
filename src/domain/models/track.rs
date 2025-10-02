@@ -1,14 +1,14 @@
-use crate::domain::models::TaskID;
-use crate::domain::models::Task;
-use serde::{Deserialize, Serialize};
-use std::cmp::PartialEq;
-use std::collections::HashMap;
 use crate::domain::error::DomainError;
-use crate::domain::models::{Points};
+use crate::domain::models::Points;
+use crate::domain::models::Task;
+use crate::domain::models::TaskID;
 use crate::{
     domain::models::{Answer, MediaID},
     not_empty_string_impl,
 };
+use serde::{Deserialize, Serialize};
+use std::cmp::PartialEq;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub enum TrackTag {
@@ -187,11 +187,11 @@ impl<'a> TrackProgress<'a> {
             (self.points().as_i32() as f32) / (max.as_i32() as f32)
         }
     }
-    
+
     pub fn full_completed(&self) -> bool {
-        self.track
-            .tasks
-            .values()
-            .all(|t| self.task_status(&t.id()).is_some_and(|t| matches!(t, TaskStatus::Completed)))
+        self.track.tasks.values().all(|t| {
+            self.task_status(&t.id())
+                .is_some_and(|t| matches!(t, TaskStatus::Completed))
+        })
     }
 }

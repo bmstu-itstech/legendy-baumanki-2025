@@ -1,4 +1,9 @@
-use crate::domain::models::{CharacterFact, CharacterID, CharacterLegacy, CharacterName, CharacterQuote, FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType, Team, TeamID, TeamName, User, Username, TrackTag, TrackDescription, Track, TrackStatus, TaskID, TaskType, TaskText, TaskOption, Task, Points, CorrectAnswer};
+use crate::domain::models::{
+    CharacterFact, CharacterID, CharacterLegacy, CharacterName, CharacterQuote, CorrectAnswer,
+    FileID, FullName, GroupName, MAX_TEAM_SIZE, Media, MediaID, MediaType, Points, Task, TaskID,
+    TaskOption, TaskText, TaskType, Team, TeamID, TeamName, Track, TrackDescription, TrackStatus,
+    TrackTag, User, Username,
+};
 
 pub struct UserDTO {
     pub username: Option<Username>,

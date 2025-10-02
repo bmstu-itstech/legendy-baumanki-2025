@@ -1,16 +1,27 @@
-use crate::domain::models::{Answer, AnswerText, CorrectAnswer, Points, Task, TaskID, TaskText, TrackStatus};
+use crate::domain::models::{
+    Answer, AnswerText, CorrectAnswer, Points, Task, TaskID, TaskText, TrackStatus,
+};
+use chrono::{DateTime, Utc};
 use deadpool_postgres::Pool;
 use postgres_types::{FromSql, ToSql};
 use std::collections::HashMap;
-use chrono::{DateTime, Utc};
 use tokio_postgres::{Client, GenericClient};
 use tokio_postgres::{Row, Transaction};
 
 use crate::app::error::AppError;
-use crate::app::ports::{CharactersProvider, FeedbackRepository, IsAdminProvider, IsRegisteredUserProvider, MediaProvider, MediaRepository, TaskProvider, TeamByMemberProvider, TeamProvider, TeamRepository, TrackProvider, UserProvider, UserRepository};
-use crate::domain::models::{Character, CharacterFact, CharacterID, CharacterLegacy, CharacterName, CharacterQuote, Feedback, FileID, FullName, GroupName, Media, MediaID, MediaType as DomainMediaType, SerialNumber, TaskOption, Team, TeamID, TeamName, Track, TrackDescription, TrackTag as DomainTrackTag, User, UserID, Username, TaskType as DomainTaskType};
-use crate::{with_client, with_transaction};
+use crate::app::ports::{
+    CharactersProvider, FeedbackRepository, IsAdminProvider, IsRegisteredUserProvider,
+    MediaProvider, MediaRepository, TaskProvider, TeamByMemberProvider, TeamProvider,
+    TeamRepository, TrackProvider, UserProvider, UserRepository,
+};
 use crate::app::usecases::AnswerTask;
+use crate::domain::models::{
+    Character, CharacterFact, CharacterID, CharacterLegacy, CharacterName, CharacterQuote,
+    Feedback, FileID, FullName, GroupName, Media, MediaID, MediaType as DomainMediaType,
+    SerialNumber, TaskOption, TaskType as DomainTaskType, Team, TeamID, TeamName, Track,
+    TrackDescription, TrackTag as DomainTrackTag, User, UserID, Username,
+};
+use crate::{with_client, with_transaction};
 
 pub struct PostgresRepository {
     pool: Pool,
@@ -84,7 +95,7 @@ struct TeamStartedTrackRow {
     team_id: String,
     track_tag: TrackTag,
     started_at: DateTime<Utc>,
-    finished_at: Option<DateTime<Utc>>
+    finished_at: Option<DateTime<Utc>>,
 }
 
 impl TeamStartedTrackRow {
@@ -279,8 +290,6 @@ impl TaskRow {
     }
 }
 
-
-
 #[async_trait::async_trait]
 impl UserProvider for PostgresRepository {
     async fn user(&self, id: UserID) -> Result<User, AppError> {
@@ -415,12 +424,13 @@ impl TeamProvider for PostgresRepository {
                 )
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
-            
-            let answer_rows = rows.iter()
+
+            let answer_rows = rows
+                .iter()
                 .map(|row| AnswerRow::fetch_from_row(&row))
                 .collect::<Result<Vec<_>, tokio_postgres::Error>>()
                 .map_err(|err| AppError::Internal(err.into()))?;
-            
+
             let mut answers = Vec::new();
             for row in answer_rows {
                 let answer = Answer::restore(
@@ -431,7 +441,7 @@ impl TeamProvider for PostgresRepository {
                 );
                 answers.push(answer);
             }
-            
+
             let rows = client
                 .query(
                     r#"
@@ -554,12 +564,13 @@ impl TeamByMemberProvider for PostgresRepository {
                 )
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
-            
-            let answer_rows = rows.iter()
+
+            let answer_rows = rows
+                .iter()
                 .map(|row| AnswerRow::fetch_from_row(&row))
                 .collect::<Result<Vec<_>, tokio_postgres::Error>>()
                 .map_err(|err| AppError::Internal(err.into()))?;
-            
+
             let mut answers = Vec::new();
             for row in answer_rows {
                 let answer = Answer::restore(
@@ -570,8 +581,8 @@ impl TeamByMemberProvider for PostgresRepository {
                 );
                 answers.push(answer);
             }
-            
-             let rows = client
+
+            let rows = client
                 .query(
                     r#"
                     SELECT
@@ -714,7 +725,8 @@ impl TeamRepository for PostgresRepository {
             for (&track_tag, track_status) in team.started_tracks() {
                 match track_status {
                     TrackStatus::Started(started_at) => {
-                        tx.execute(r#"
+                        tx.execute(
+                            r#"
                             INSERT INTO
                                 team_started_tracks (
                                     team_id,
@@ -726,17 +738,14 @@ impl TeamRepository for PostgresRepository {
                             ON CONFLICT (team_id, track_tag)
                             DO NOTHING
                             "#,
-                            &[
-                                &team.id().as_str(),
-                                &TrackTag::from(track_tag),
-                                &started_at,
-                            ],
+                            &[&team.id().as_str(), &TrackTag::from(track_tag), &started_at],
                         )
                         .await
                         .map_err(|err| AppError::Internal(err.into()))?;
-                    },
+                    }
                     TrackStatus::Finished(started_at, finished_at) => {
-                         tx.execute(r#"
+                        tx.execute(
+                            r#"
                             INSERT INTO
                                 team_started_tracks (
                                     team_id,
@@ -762,7 +771,7 @@ impl TeamRepository for PostgresRepository {
                     }
                 }
             }
-            
+
             for answer in team.answers() {
                 tx.execute(
                     r#"
@@ -788,12 +797,12 @@ impl TeamRepository for PostgresRepository {
                         &answer.text().as_str(),
                         &answer.points().as_i32(),
                         &answer.created_at(),
-                    ]
+                    ],
                 )
-                    .await
-                    .map_err(|err| AppError::Internal(err.into()))?;
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
             }
-            
+
             Ok::<(), AppError>(())
         })
     }
@@ -1078,8 +1087,8 @@ impl TrackProvider for PostgresRepository {
                 .map_err(|err| AppError::Internal(err.into()))?;
 
             if let Some(row) = row_opt {
-                let track_row = TrackRow::fetch_from_row(&row)
-                    .map_err(|err| AppError::Internal(err.into()))?;
+                let track_row =
+                    TrackRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
 
                 let rows = tx
                     .query(
@@ -1097,10 +1106,10 @@ impl TrackProvider for PostgresRepository {
                         WHERE
                             track_tag = $1
                         "#,
-                        &[&tag]
+                        &[&tag],
                     )
-                .await
-                .map_err(|err| AppError::Internal(err.into()))?;
+                    .await
+                    .map_err(|err| AppError::Internal(err.into()))?;
 
                 let mut tasks = Vec::new();
                 for row in rows {
@@ -1121,7 +1130,11 @@ impl TrackProvider for PostgresRepository {
 
                     let mut options = Vec::new();
                     for option_row in option_rows {
-                        let option = TaskOption::new(option_row.try_get("option").map_err(|err| AppError::Internal(err.into()))?)?;
+                        let option = TaskOption::new(
+                            option_row
+                                .try_get("option")
+                                .map_err(|err| AppError::Internal(err.into()))?,
+                        )?;
                         options.push(option);
                     }
 
@@ -1132,18 +1145,19 @@ impl TrackProvider for PostgresRepository {
                             FROM   task_dependencies
                             WHERE  task_id = $1
                             "#,
-                        &[&task_row.id],
+                            &[&task_row.id],
                         )
                         .await
                         .map_err(|err| AppError::Internal(err.into()))?;
 
                     let mut dependencies = Vec::new();
                     for dependencies_row in dependencies_rows {
-                        let dependency: i32 = dependencies_row.try_get("dependency")
+                        let dependency: i32 = dependencies_row
+                            .try_get("dependency")
                             .map_err(|err| AppError::Internal(err.into()))?;
                         dependencies.push(dependency as TaskID);
                     }
-                    
+
                     let correct_answer_rows = tx
                         .query(
                             r#"
@@ -1151,14 +1165,15 @@ impl TrackProvider for PostgresRepository {
                             FROM   task_correct_answers
                             WHERE  task_id = $1
                             "#,
-                        &[&task_row.id],
+                            &[&task_row.id],
                         )
                         .await
                         .map_err(|err| AppError::Internal(err.into()))?;
 
                     let mut correct_answers = Vec::new();
                     for row in correct_answer_rows {
-                        let text = row.try_get("answer")
+                        let text = row
+                            .try_get("answer")
                             .map_err(|err| AppError::Internal(err.into()))?;
                         let answer = CorrectAnswer::new(text)?;
                         correct_answers.push(answer);
@@ -1184,7 +1199,7 @@ impl TrackProvider for PostgresRepository {
                     domain_tag,
                     TrackDescription::new(track_row.description)?,
                     MediaID::new(track_row.media_id)?,
-                    tasks
+                    tasks,
                 );
 
                 Ok::<_, AppError>(track)
@@ -1215,14 +1230,14 @@ impl TaskProvider for PostgresRepository {
                     WHERE
                         id = $1
                     "#,
-                    &[&task_id]
+                    &[&task_id],
                 )
                 .await
                 .map_err(|err| AppError::Internal(err.into()))?;
 
             if let Some(row) = row_opt {
-                let task_row = TaskRow::fetch_from_row(&row)
-                    .map_err(|err| AppError::Internal(err.into()))?;
+                let task_row =
+                    TaskRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
 
                 let option_rows = tx
                     .query(
@@ -1233,68 +1248,74 @@ impl TaskProvider for PostgresRepository {
                         "#,
                         &[&task_row.id],
                     )
-                        .await
-                        .map_err(|err| AppError::Internal(err.into()))?;
+                    .await
+                    .map_err(|err| AppError::Internal(err.into()))?;
 
-                    let mut options = Vec::new();
-                    for option_row in option_rows {
-                        let option = TaskOption::new(option_row.try_get("option").map_err(|err| AppError::Internal(err.into()))?)?;
-                        options.push(option);
-                    }
+                let mut options = Vec::new();
+                for option_row in option_rows {
+                    let option = TaskOption::new(
+                        option_row
+                            .try_get("option")
+                            .map_err(|err| AppError::Internal(err.into()))?,
+                    )?;
+                    options.push(option);
+                }
 
-                    let dependencies_rows = tx
-                        .query(
-                            r#"
+                let dependencies_rows = tx
+                    .query(
+                        r#"
                             SELECT dependency
                             FROM   task_dependencies
                             WHERE  task_id = $1
                             "#,
                         &[&task_row.id],
-                        )
-                        .await
-                        .map_err(|err| AppError::Internal(err.into()))?;
+                    )
+                    .await
+                    .map_err(|err| AppError::Internal(err.into()))?;
 
-                    let mut dependencies = Vec::new();
-                    for dependencies_row in dependencies_rows {
-                        let dependency: i32 = dependencies_row.try_get("dependency")
-                            .map_err(|err| AppError::Internal(err.into()))?;
-                        dependencies.push(dependency as TaskID);
-                    }
-                
-                    let correct_answer_rows = tx
-                        .query(
-                            r#"
+                let mut dependencies = Vec::new();
+                for dependencies_row in dependencies_rows {
+                    let dependency: i32 = dependencies_row
+                        .try_get("dependency")
+                        .map_err(|err| AppError::Internal(err.into()))?;
+                    dependencies.push(dependency as TaskID);
+                }
+
+                let correct_answer_rows = tx
+                    .query(
+                        r#"
                             SELECT answer
                             FROM   task_correct_answers
                             WHERE  task_id = $1
                             "#,
                         &[&task_row.id],
-                        )
-                        .await
+                    )
+                    .await
+                    .map_err(|err| AppError::Internal(err.into()))?;
+
+                let mut correct_answers = Vec::new();
+                for row in correct_answer_rows {
+                    let text = row
+                        .try_get("answer")
                         .map_err(|err| AppError::Internal(err.into()))?;
+                    let answer = CorrectAnswer::new(text)?;
+                    correct_answers.push(answer);
+                }
 
-                    let mut correct_answers = Vec::new();
-                    for row in correct_answer_rows {
-                        let text = row.try_get("answer")
-                            .map_err(|err| AppError::Internal(err.into()))?;
-                        let answer = CorrectAnswer::new(text)?;
-                        correct_answers.push(answer);
-                    }
-
-                    let task = Task::new(
-                        task_row.id as TaskID,
-                        task_row.task_type.into(),
-                        TaskText::new(task_row.question)?,
-                        TaskText::new(task_row.explanation)?,
-                        task_row.media_id.map(|m| MediaID::new(m)).transpose()?,
-                        options,
-                        dependencies,
-                        correct_answers,
-                        Points::new(task_row.points)?,
-                        Points::new(task_row.price)?,
-                        task_row.max_lvnsht_d as usize,
-                    );
-                    Ok(task)
+                let task = Task::new(
+                    task_row.id as TaskID,
+                    task_row.task_type.into(),
+                    TaskText::new(task_row.question)?,
+                    TaskText::new(task_row.explanation)?,
+                    task_row.media_id.map(|m| MediaID::new(m)).transpose()?,
+                    options,
+                    dependencies,
+                    correct_answers,
+                    Points::new(task_row.points)?,
+                    Points::new(task_row.price)?,
+                    task_row.max_lvnsht_d as usize,
+                );
+                Ok(task)
             } else {
                 Err(AppError::TaskNotFound(task_id))
             }

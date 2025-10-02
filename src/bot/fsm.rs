@@ -14,7 +14,7 @@ pub enum BotState {
     MenuOption,
     CharacterName,
     Feedback,
-    
+
     // Tracks
     Track,
     StartTrack(TrackTag),

@@ -25,10 +25,10 @@ pub enum AppError {
 
     #[error("track {0:?} not found")]
     TrackNotFound(TrackTag),
-    
+
     #[error("user {0:?} is not in team")]
     UserNotInTeam(UserID),
-    
+
     #[error(transparent)]
     Internal(#[from] StdError),
 }

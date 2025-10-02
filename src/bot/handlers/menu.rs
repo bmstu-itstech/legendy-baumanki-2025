@@ -3,15 +3,18 @@ use teloxide::prelude::*;
 use teloxide::types::{InputFile, Message, ParseMode};
 
 use crate::app::error::AppError;
-use crate::app::usecases::dto::{CharacterDTO, Profile, TeamWithMembersDTO, UserDTO};
-use crate::app::usecases::{GetAvailableTracks, GetCharacter, GetCharacterNames, GetProfile, GetTeamWithMembers, GetUser, GetUserTeam, GiveFeedback};
+use crate::app::usecases::dto::{CharacterDTO, TeamWithMembersDTO, UserDTO};
+use crate::app::usecases::{
+    GetAvailableTracks, GetCharacter, GetCharacterNames, GetTeamWithMembers, GetUser, GetUserTeam,
+    GiveFeedback,
+};
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::shared::{send_enter_message, send_use_keyboard};
+use crate::bot::handlers::tracks::prompt_track;
 use crate::bot::keyboards::{
     make_back_keyboard, make_characters_keyboard_with_back, make_menu_keyboard,
 };
 use crate::bot::{BotHandlerResult, keyboards, texts};
-use crate::bot::handlers::tracks::prompt_track;
 use crate::domain::models::{CharacterName, FeedbackText, UserID};
 
 pub async fn prompt_menu(
@@ -79,11 +82,7 @@ async fn send_unknown_menu_option(bot: &Bot, msg: &Message) -> BotHandlerResult 
     Ok(())
 }
 
-async fn send_my_team(
-    bot: &Bot,
-    msg: &Message,
-    team: TeamWithMembersDTO,
-) -> BotHandlerResult {
+async fn send_my_team(bot: &Bot, msg: &Message, team: TeamWithMembersDTO) -> BotHandlerResult {
     bot.send_message(msg.chat.id, texts::my_team(team))
         .parse_mode(ParseMode::Html)
         .await?;

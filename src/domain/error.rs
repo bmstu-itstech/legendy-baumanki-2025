@@ -13,13 +13,13 @@ pub enum DomainError {
 
     #[error("user {0:?} is not member of team")]
     UserIsNotMemberOfTeam(UserID),
-    
+
     #[error("track {0:?} can not be started")]
     TrackCanNotBeStarted(TrackTag),
-    
+
     #[error("track {0:?} can not be finished")]
     TrackCanNotBeFinished(TrackTag),
-    
+
     #[error("track {0:?} not started")]
     TrackNotStarted(TrackTag),
 }
