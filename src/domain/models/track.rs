@@ -82,7 +82,7 @@ impl Track {
         self.tasks.get(id)
     }
 
-    pub fn progress(&self, answers: &[&Answer]) -> TrackProgress {
+    pub fn progress(&'_ self, answers: &[&Answer]) -> TrackProgress<'_> {
         TrackProgress::new(self, answers)
     }
 
@@ -108,6 +108,7 @@ impl<'a> TrackProgress<'a> {
     pub fn new(track: &'a Track, answers: &[&Answer]) -> Self {
         let answers_map = answers
             .iter()
+            .filter(|&&a| track.tasks.contains_key(&a.task_id()))
             .map(|&a| (a.task_id().clone(), a.points()))
             .collect();
 
