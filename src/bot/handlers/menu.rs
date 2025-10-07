@@ -48,7 +48,7 @@ async fn receive_menu_option(
     match msg.text() {
         None => send_enter_message(&bot, &msg).await?,
         Some(text) => match text {
-            keyboards::BTN_MY_TEAM => {
+            /*keyboards::BTN_MY_TEAM => {
                 if let Some(team) = get_user_team.execute(user_id).await? {
                     let team = get_team_with_members.execute(team.id).await?;
                     if !team.solo {
@@ -66,7 +66,6 @@ async fn receive_menu_option(
                 let names = get_character_names.execute().await?;
                 prompt_character_name(bot, msg, dialogue, &names).await?
             }
-            keyboards::BTN_GIVE_FEEDBACK => prompt_feedback(bot, msg, dialogue).await?,
             keyboards::BTN_RESERVE_SLOT => {
                 let player = get_player.execute(user_id).await?;
                 if player.is_captain {
@@ -79,7 +78,8 @@ async fn receive_menu_option(
             }
             keyboards::BTN_CANCEL_RESERVATION => {
                 prompt_cancel_reservation_reason(bot, msg, dialogue).await?
-            }
+            }*/
+            keyboards::BTN_GIVE_FEEDBACK => prompt_feedback(bot, msg, dialogue).await?,
             _ => {
                 send_unknown_menu_option(&bot, &msg).await?;
                 let player = get_player.execute(user_id).await?;

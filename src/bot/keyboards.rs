@@ -144,21 +144,21 @@ pub const BTN_CANCEL_RESERVATION: StaticStr = "Отменить запись";
 pub fn make_menu_keyboard(player: &PlayerDTO) -> KeyboardMarkup {
     let mut buttons = Vec::new();
 
-    if player.is_captain {
+    /*if player.is_captain {
         if !player.reserved_slot {
             buttons.push(vec![KeyboardButton::new(BTN_RESERVE_SLOT)])
         } else {
             buttons.push(vec![KeyboardButton::new(BTN_CANCEL_RESERVATION)])
         }
-    }
+    }*/
 
-    let mut row = vec![KeyboardButton::new(BTN_TRACKS)];
+    /*let mut row = vec![KeyboardButton::new(BTN_TRACKS)];
     if !player.solo_team {
         row.push(KeyboardButton::new(BTN_MY_TEAM));
     }
-    buttons.push(row);
+    buttons.push(row);*/
 
-    buttons.push(vec![KeyboardButton::new(BTN_CHARACTERS)]);
+    //buttons.push(vec![KeyboardButton::new(BTN_CHARACTERS)]);
     buttons.push(vec![KeyboardButton::new(BTN_GIVE_FEEDBACK)]);
 
     KeyboardMarkup::new(buttons)
