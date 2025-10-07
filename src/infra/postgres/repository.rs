@@ -1,7 +1,9 @@
 use crate::domain::models::{
-    Answer, AnswerText, CorrectAnswer, Points, Task, TaskID, TaskText, TrackStatus,
+    Answer, AnswerText, CorrectAnswer, Points, Reservation, Site, Slot, SlotID, Task, TaskID,
+    TaskText, TrackStatus,
 };
-use chrono::{DateTime, Utc};
+use async_trait::async_trait;
+use chrono::{DateTime, NaiveTime, Utc};
 use deadpool_postgres::Pool;
 use postgres_types::{FromSql, ToSql};
 use std::collections::HashMap;
@@ -11,8 +13,9 @@ use tokio_postgres::{Row, Transaction};
 use crate::app::error::AppError;
 use crate::app::ports::{
     CharactersProvider, FeedbackRepository, IsAdminProvider, IsRegisteredUserProvider,
-    MediaProvider, MediaRepository, TaskProvider, TeamByMemberProvider, TeamProvider,
-    TeamRepository, TrackProvider, UserProvider, UserRepository,
+    MediaProvider, MediaRepository, SlotProvider, SlotRepository, SlotsProvider, TaskProvider,
+    TeamByMemberProvider, TeamProvider, TeamRepository, TrackProvider, UserProvider,
+    UserRepository,
 };
 use crate::app::usecases::AnswerTask;
 use crate::domain::models::{
@@ -57,7 +60,7 @@ struct TeamRow {
     id: String,
     name: String,
     captain_id: i64,
-    hint_points: i32,
+    reserved_slot: Option<String>,
 }
 
 impl TeamRow {
@@ -66,7 +69,7 @@ impl TeamRow {
             id: row.try_get("id")?,
             name: row.try_get("name")?,
             captain_id: row.try_get("captain_id")?,
-            hint_points: row.try_get("hint_points")?,
+            reserved_slot: row.try_get("reserved_slot")?,
         })
     }
 }
@@ -290,6 +293,40 @@ impl TaskRow {
     }
 }
 
+struct SlotRow {
+    id: String,
+    start: NaiveTime,
+    site: String,
+    capacity: i32,
+}
+
+impl SlotRow {
+    pub fn fetch_from_row(row: &Row) -> Result<SlotRow, tokio_postgres::Error> {
+        Ok(Self {
+            id: row.try_get("id")?,
+            start: row.try_get("start")?,
+            site: row.try_get("site")?,
+            capacity: row.try_get("capacity")?,
+        })
+    }
+}
+
+struct ReservationRow {
+    slot_id: String,
+    team_id: String,
+    places: i32,
+}
+
+impl ReservationRow {
+    pub fn fetch_from_row(row: &Row) -> Result<ReservationRow, tokio_postgres::Error> {
+        Ok(Self {
+            slot_id: row.try_get("slot_id")?,
+            team_id: row.try_get("team_id")?,
+            places: row.try_get("places")?,
+        })
+    }
+}
+
 #[async_trait::async_trait]
 impl UserProvider for PostgresRepository {
     async fn user(&self, id: UserID) -> Result<User, AppError> {
@@ -365,7 +402,7 @@ impl TeamProvider for PostgresRepository {
                         id,
                         name,
                         captain_id,
-                        hint_points
+                        reserved_slot
                     FROM teams
                     WHERE
                         id = $1
@@ -483,7 +520,10 @@ impl TeamProvider for PostgresRepository {
                 member_ids,
                 answers,
                 started_tracks,
-                Points::new(team_row.hint_points)?,
+                team_row
+                    .reserved_slot
+                    .map(|s| SlotID::try_from(s))
+                    .transpose()?,
             )?;
 
             Ok(team)
@@ -502,7 +542,7 @@ impl TeamByMemberProvider for PostgresRepository {
                         t.id,
                         t.name,
                         t.captain_id,
-                        t.hint_points
+                        t.reserved_slot
                     FROM teams t
                     LEFT JOIN
                         users u
@@ -623,7 +663,10 @@ impl TeamByMemberProvider for PostgresRepository {
                 member_ids,
                 answers,
                 started_tracks,
-                Points::new(team_row.hint_points)?,
+                team_row
+                    .reserved_slot
+                    .map(|s| SlotID::try_from(s))
+                    .transpose()?,
             )?;
 
             Ok(Some(team))
@@ -676,18 +719,21 @@ impl TeamRepository for PostgresRepository {
                     teams (
                         id,
                         name,
-                        captain_id
+                        captain_id,
+                        reserved_slot
                     )
                 VALUES
-                    ($1, $2, $3)
+                    ($1, $2, $3, $4)
                 ON CONFLICT (id) DO UPDATE SET
                     name = $2,
-                    captain_id = $3
+                    captain_id = $3,
+                    reserved_slot = $4
                 "#,
                 &[
                     &team.id().to_string(),
                     &team.name().to_string(),
                     &team.captain_id().as_i64(),
+                    &team.reserved_slot().map(|s| s.as_str()),
                 ],
             )
             .await
@@ -1319,6 +1365,255 @@ impl TaskProvider for PostgresRepository {
             } else {
                 Err(AppError::TaskNotFound(task_id))
             }
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl SlotsProvider for PostgresRepository {
+    async fn slots(&self) -> Result<Vec<Slot>, AppError> {
+        with_transaction!(self.pool, async |tx: &Transaction| {
+            let rows = tx
+                .query(
+                    r#"
+                    SELECT
+                        id,
+                        start,
+                        site,
+                        capacity
+                    FROM slots
+                    "#,
+                    &[],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            let mut slots = Vec::new();
+            for row in rows {
+                let slot_row =
+                    SlotRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
+
+                let r_rows = tx
+                    .query(
+                        r#"
+                        SELECT
+                            slot_id,
+                            team_id,
+                            places
+                        FROM reservations
+                        WHERE slot_id = $1
+                        "#,
+                        &[&slot_row.id.as_str()],
+                    )
+                    .await
+                    .map_err(|err| AppError::Internal(err.into()))?;
+
+                let mut reservations = Vec::new();
+                for r_row in r_rows {
+                    let reservation_row = ReservationRow::fetch_from_row(&r_row)
+                        .map_err(|err| AppError::Internal(err.into()))?;
+                    let reservation = Reservation::new(
+                        TeamID::try_from(reservation_row.team_id)?,
+                        reservation_row.places as usize,
+                    );
+                    reservations.push(reservation);
+                }
+
+                let slot = Slot::restore(
+                    SlotID::try_from(slot_row.id)?,
+                    slot_row.start,
+                    Site::new(slot_row.site)?,
+                    slot_row.capacity as usize,
+                    reservations,
+                );
+                slots.push(slot);
+            }
+
+            Ok::<_, AppError>(slots)
+        })
+    }
+
+    async fn slots_by_start(&self, start: NaiveTime) -> Result<Vec<Slot>, AppError> {
+        with_transaction!(self.pool, async |tx: &Transaction| {
+            let rows = tx
+                .query(
+                    r#"
+                    SELECT
+                        id,
+                        start,
+                        site,
+                        capacity
+                    FROM slots
+                    WHERE start = $1
+                    "#,
+                    &[&start],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            let mut slots = Vec::new();
+            for row in rows {
+                let slot_row =
+                    SlotRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
+
+                let r_rows = tx
+                    .query(
+                        r#"
+                        SELECT
+                            slot_id,
+                            team_id,
+                            places
+                        FROM reservations
+                        WHERE slot_id = $1
+                        "#,
+                        &[&slot_row.id.as_str()],
+                    )
+                    .await
+                    .map_err(|err| AppError::Internal(err.into()))?;
+
+                let mut reservations = Vec::new();
+                for r_row in r_rows {
+                    let reservation_row = ReservationRow::fetch_from_row(&r_row)
+                        .map_err(|err| AppError::Internal(err.into()))?;
+                    let reservation = Reservation::new(
+                        TeamID::try_from(reservation_row.team_id)?,
+                        reservation_row.places as usize,
+                    );
+                    reservations.push(reservation);
+                }
+
+                let slot = Slot::restore(
+                    SlotID::try_from(slot_row.id)?,
+                    slot_row.start,
+                    Site::new(slot_row.site)?,
+                    slot_row.capacity as usize,
+                    reservations,
+                );
+                slots.push(slot);
+            }
+
+            Ok::<_, AppError>(slots)
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl SlotProvider for PostgresRepository {
+    async fn slot(&self, id: &SlotID) -> Result<Slot, AppError> {
+        with_transaction!(self.pool, async |tx: &Transaction| {
+            let row_opt = tx
+                .query_opt(
+                    r#"
+                    SELECT
+                        id,
+                        start,
+                        site,
+                        capacity
+                    FROM slots
+                    WHERE id = $1
+                    "#,
+                    &[&id.as_str()],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+
+            if let Some(row) = row_opt {
+                let slot_row =
+                    SlotRow::fetch_from_row(&row).map_err(|err| AppError::Internal(err.into()))?;
+
+                let r_rows = tx
+                    .query(
+                        r#"
+                        SELECT
+                            slot_id,
+                            team_id,
+                            places
+                        FROM reservations
+                        WHERE slot_id = $1
+                        "#,
+                        &[&slot_row.id.as_str()],
+                    )
+                    .await
+                    .map_err(|err| AppError::Internal(err.into()))?;
+
+                let mut reservations = Vec::new();
+                for r_row in r_rows {
+                    let reservation_row = ReservationRow::fetch_from_row(&r_row)
+                        .map_err(|err| AppError::Internal(err.into()))?;
+                    let reservation = Reservation::new(
+                        TeamID::try_from(reservation_row.team_id)?,
+                        reservation_row.places as usize,
+                    );
+                    reservations.push(reservation);
+                }
+
+                let slot = Slot::restore(
+                    SlotID::try_from(slot_row.id)?,
+                    slot_row.start,
+                    Site::new(slot_row.site)?,
+                    slot_row.capacity as usize,
+                    reservations,
+                );
+
+                Ok(slot)
+            } else {
+                Err(AppError::SlotNotFound(id.clone()))
+            }
+        })
+    }
+}
+
+#[async_trait::async_trait]
+impl SlotRepository for PostgresRepository {
+    async fn save_slot(&self, slot: Slot) -> Result<(), AppError> {
+        with_transaction!(self.pool, async |tx: &Transaction| {
+            tx.execute(
+                r#"
+                INSERT INTO slots
+                    (id, start, site, capacity)
+                VALUES
+                    ($1, $2, $3, $4)
+                ON CONFLICT (id) DO NOTHING
+                "#,
+                &[
+                    &slot.id().as_str(),
+                    &slot.start(),
+                    &slot.site().as_str(),
+                    &(slot.capacity() as i32),
+                ],
+            )
+            .await
+            .map_err(|err| AppError::Internal(err.into()))?;
+
+            tx.execute(
+                r#"
+                DELETE FROM reservations
+                WHERE slot_id = $1
+                "#,
+                &[&slot.id().as_str()],
+            )
+            .await
+            .map_err(|err| AppError::Internal(err.into()))?;
+
+            for reservation in slot.reservations() {
+                tx.execute(
+                    r#"
+                    INSERT INTO reservations
+                        (slot_id, team_id, places)
+                    VALUES
+                        ($1, $2, $3)
+                    "#,
+                    &[
+                        &slot.id().as_str(),
+                        &reservation.team_id().as_str(),
+                        &(reservation.places() as i32),
+                    ],
+                )
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+            }
+
+            Ok::<_, AppError>(())
         })
     }
 }

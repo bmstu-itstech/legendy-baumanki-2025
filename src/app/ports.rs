@@ -1,8 +1,10 @@
 use crate::app::error::AppError;
 use crate::domain::models::{
-    Character, CharacterName, Feedback, Media, MediaID, Task, TaskID, Team, TeamID, Track,
-    TrackTag, User, UserID,
+    Character, CharacterName, Feedback, Media, MediaID, Slot, SlotID, Task, TaskID, Team, TeamID,
+    Track, TrackTag, User, UserID,
 };
+
+use chrono::NaiveTime;
 
 #[async_trait::async_trait]
 pub trait UserProvider: Send + Sync {
@@ -69,4 +71,20 @@ pub trait FeedbackRepository: Send + Sync {
 #[async_trait::async_trait]
 pub trait TrackProvider: Send + Sync {
     async fn track(&self, tag: TrackTag) -> Result<Track, AppError>;
+}
+
+#[async_trait::async_trait]
+pub trait SlotsProvider: Send + Sync {
+    async fn slots(&self) -> Result<Vec<Slot>, AppError>;
+    async fn slots_by_start(&self, start: NaiveTime) -> Result<Vec<Slot>, AppError>;
+}
+
+#[async_trait::async_trait]
+pub trait SlotProvider: Send + Sync {
+    async fn slot(&self, id: &SlotID) -> Result<Slot, AppError>;
+}
+
+#[async_trait::async_trait]
+pub trait SlotRepository: SlotProvider + Send + Sync {
+    async fn save_slot(&self, slot: Slot) -> Result<(), AppError>;
 }

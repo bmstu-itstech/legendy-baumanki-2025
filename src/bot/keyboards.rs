@@ -1,3 +1,4 @@
+use chrono::NaiveTime;
 use teloxide::types::{KeyboardButton, KeyboardMarkup};
 
 use crate::app::usecases::dto::PlayerDTO;
@@ -101,19 +102,61 @@ pub fn make_options_keyboard_with_back(options: &[TaskOption]) -> KeyboardMarkup
         .one_time_keyboard()
 }
 
+pub fn make_slot_start_keyboard_with_back(times: &[NaiveTime]) -> KeyboardMarkup {
+    let mut keyboard = Vec::new();
+    for chunk in times.chunks(3) {
+        let row: Vec<_> = chunk
+            .iter()
+            .map(|time| KeyboardButton::new(time.format("%H:%M").to_string()))
+            .collect();
+        keyboard.push(row);
+    }
+    keyboard.push(vec![KeyboardButton::new(BTN_BACK)]);
+    KeyboardMarkup::new(keyboard)
+        .resize_keyboard()
+        .one_time_keyboard()
+}
+
+pub const BTN_CAN_NOT_ACCEPT_FINAL: StaticStr = "Не смогу прийти на финал";
+pub const BTN_CHANGE_RESERVATION_TIME: StaticStr = "Хочу изменить время";
+
+pub fn make_cancel_reservation_keyboard_with_back() -> KeyboardMarkup {
+    let mut buttons = Vec::new();
+
+    buttons.push(vec![
+        KeyboardButton::new(BTN_CAN_NOT_ACCEPT_FINAL),
+        KeyboardButton::new(BTN_CHANGE_RESERVATION_TIME),
+    ]);
+    buttons.push(vec![KeyboardButton::new(BTN_BACK)]);
+
+    KeyboardMarkup::new(buttons)
+        .resize_keyboard()
+        .one_time_keyboard()
+}
+
 pub const BTN_MY_TEAM: StaticStr = "Моя команда";
 pub const BTN_TRACKS: StaticStr = "Треки";
 pub const BTN_CHARACTERS: StaticStr = "Личности";
 pub const BTN_GIVE_FEEDBACK: StaticStr = "Комментарий";
+pub const BTN_RESERVE_SLOT: StaticStr = "Записаться на финал";
+pub const BTN_CANCEL_RESERVATION: StaticStr = "Отменить запись";
 
 pub fn make_menu_keyboard(player: &PlayerDTO) -> KeyboardMarkup {
     let mut buttons = Vec::new();
 
-    let mut first_row = vec![KeyboardButton::new(BTN_TRACKS)];
-    if !player.solo_team {
-        first_row.push(KeyboardButton::new(BTN_MY_TEAM));
+    if player.is_captain {
+        if !player.reserved_slot {
+            buttons.push(vec![KeyboardButton::new(BTN_RESERVE_SLOT)])
+        } else {
+            buttons.push(vec![KeyboardButton::new(BTN_CANCEL_RESERVATION)])
+        }
     }
-    buttons.push(first_row);
+
+    let mut row = vec![KeyboardButton::new(BTN_TRACKS)];
+    if !player.solo_team {
+        row.push(KeyboardButton::new(BTN_MY_TEAM));
+    }
+    buttons.push(row);
 
     buttons.push(vec![KeyboardButton::new(BTN_CHARACTERS)]);
     buttons.push(vec![KeyboardButton::new(BTN_GIVE_FEEDBACK)]);

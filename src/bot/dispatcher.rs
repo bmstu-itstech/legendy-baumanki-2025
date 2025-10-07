@@ -1,3 +1,4 @@
+use crate::bot::handlers::slots::slots_scheme;
 use std::sync::Arc;
 use teloxide::dispatching::dialogue::serializer::Json;
 use teloxide::dispatching::dialogue::{PostgresStorage, enter};
@@ -22,11 +23,13 @@ impl BotDispatcher {
         Dispatcher::builder(bot, Self::scheme())
             .dependencies(dptree::deps![
                 app.answer_task,
+                app.cancel_reservation,
                 app.check_admin,
                 app.check_captain,
                 app.check_registered,
-                app.check_started_track,
+                app.get_available_slot_starts,
                 app.get_available_tasks,
+                app.check_started_track,
                 app.get_character,
                 app.get_character_names,
                 app.get_completed_tasks,
@@ -34,12 +37,14 @@ impl BotDispatcher {
                 app.get_player,
                 app.get_profile,
                 app.get_task,
+                app.get_team_reserved_slot,
                 app.get_available_tracks,
                 app.get_team_with_members,
                 app.get_track_in_progress,
                 app.get_user,
                 app.get_user_team,
                 app.give_feedback,
+                app.reserve_slot,
                 app.start_track,
                 app.upload_media,
                 postgres_storage
@@ -56,5 +61,6 @@ impl BotDispatcher {
             .branch(commands_scheme())
             .branch(menu_scheme())
             .branch(tracks_scheme())
+            .branch(slots_scheme())
     }
 }

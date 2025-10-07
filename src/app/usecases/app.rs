@@ -1,18 +1,19 @@
-use crate::app::usecases::get_available_tasks::GetAvailableTasks;
-use crate::app::usecases::get_task::GetTask;
 use crate::app::usecases::{
-    AnswerTask, CheckAdmin, CheckCaptain, CheckRegistered, CheckStartedTrack, GetAvailableTracks,
-    GetCharacter, GetCharacterNames, GetCompletedTasks, GetMedia, GetPlayer, GetProfile,
-    GetTeamWithMembers, GetTrackInProgress, GetUser, GetUserTeam, GiveFeedback, StartTrack,
-    UploadMedia,
+    AnswerTask, CancelReservation, CheckAdmin, CheckCaptain, CheckRegistered, CheckStartedTrack,
+    GetAvailableSlotStarts, GetAvailableTasks, GetAvailableTracks, GetCharacter, GetCharacterNames,
+    GetCompletedTasks, GetMedia, GetPlayer, GetProfile, GetTask, GetTeamReservedSlot,
+    GetTeamWithMembers, GetTrackInProgress, GetUser, GetUserTeam, GiveFeedback, ReserveSlot,
+    StartTrack, UploadMedia,
 };
 
 pub struct App {
     pub answer_task: AnswerTask,
+    pub cancel_reservation: CancelReservation,
     pub check_admin: CheckAdmin,
     pub check_captain: CheckCaptain,
     pub check_registered: CheckRegistered,
     pub check_started_track: CheckStartedTrack,
+    pub get_available_slot_starts: GetAvailableSlotStarts,
     pub get_available_tasks: GetAvailableTasks,
     pub get_available_tracks: GetAvailableTracks,
     pub get_character: GetCharacter,
@@ -22,11 +23,13 @@ pub struct App {
     pub get_player: GetPlayer,
     pub get_profile: GetProfile,
     pub get_task: GetTask,
+    pub get_team_reserved_slot: GetTeamReservedSlot,
     pub get_team_with_members: GetTeamWithMembers,
     pub get_track_in_progress: GetTrackInProgress,
     pub get_user: GetUser,
     pub get_user_team: GetUserTeam,
     pub give_feedback: GiveFeedback,
+    pub reserve_slot: ReserveSlot,
     pub start_track: StartTrack,
     pub upload_media: UploadMedia,
 }

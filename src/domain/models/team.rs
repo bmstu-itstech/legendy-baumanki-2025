@@ -1,14 +1,14 @@
-use crate::domain::models::Points;
+use crate::domain::models::{Points, SlotID};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use super::user::UserID;
+use crate::app::usecases::dto::SlotDTO;
 use crate::domain::error::DomainError;
 use crate::domain::models::{Answer, TaskID, TrackTag};
 use crate::utils::uuid::new_pseudo_uuid;
 use crate::{not_empty_string_impl, pseudo_uuid_impl};
-
-use super::user::UserID;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct TeamID(String);
@@ -34,7 +34,7 @@ pub struct Team {
     member_ids: Vec<UserID>,
     answers: HashMap<TaskID, Answer>,
     started_tracks: HashMap<TrackTag, TrackStatus>,
-    hint_points: Points,
+    reserved_slot: Option<SlotID>,
 }
 
 impl Team {
@@ -45,7 +45,7 @@ impl Team {
         member_ids: Vec<UserID>,
         answers: Vec<Answer>,
         started_tracks: HashMap<TrackTag, TrackStatus>,
-        hint_points: Points,
+        reserved_slot: Option<SlotID>,
     ) -> Result<Self, DomainError> {
         if !member_ids
             .iter()
@@ -73,7 +73,7 @@ impl Team {
             member_ids,
             answers: answers_map,
             started_tracks,
-            hint_points,
+            reserved_slot,
         })
     }
 
@@ -93,6 +93,35 @@ impl Team {
         &self.member_ids
     }
 
+    pub fn size(&self) -> usize {
+        self.member_ids.len()
+    }
+
+    pub fn reserved_slot(&self) -> Option<&SlotID> {
+        self.reserved_slot.as_ref()
+    }
+
+    pub fn reserve(&mut self, slot_id: SlotID) -> Result<(), DomainError> {
+        if let Some(slot_id) = self.reserved_slot.as_ref() {
+            Err(DomainError::TeamAlreadyReservedSlot(
+                self.id.clone(),
+                slot_id.clone(),
+            ))
+        } else {
+            self.reserved_slot.replace(slot_id);
+            Ok(())
+        }
+    }
+
+    pub fn cancel_reservation(&mut self) -> Result<SlotID, DomainError> {
+        if let Some(slot_id) = self.reserved_slot.clone() {
+            self.reserved_slot = None;
+            Ok(slot_id)
+        } else {
+            Err(DomainError::TeamNotReservedSlot(self.id.clone()))
+        }
+    }
+
     // Страшный костыль, когда одиночные игроки это команды с одним игроком...
     pub fn is_solo(&self) -> bool {
         self.member_ids.len() == 1
@@ -109,10 +138,6 @@ impl Team {
                 TrackTag::Uporstvo,
             ]
         }
-    }
-
-    pub fn hint_points(&self) -> Points {
-        self.hint_points
     }
 
     pub fn answers(&self) -> Vec<&Answer> {

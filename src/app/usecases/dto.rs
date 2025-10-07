@@ -4,6 +4,8 @@ use crate::domain::models::{
     TaskOption, TaskText, TaskType, Team, TeamID, TeamName, Track, TrackDescription, TrackStatus,
     TrackTag, User, Username,
 };
+use crate::domain::models::{Site, Slot, SlotID};
+use chrono::NaiveTime;
 
 pub struct UserDTO {
     pub username: Option<Username>,
@@ -26,6 +28,8 @@ impl From<User> for UserDTO {
 pub struct PlayerDTO {
     pub username: Option<Username>,
     pub solo_team: bool,
+    pub reserved_slot: bool,
+    pub is_captain: bool,
 }
 
 pub struct TeamDTO {
@@ -163,4 +167,20 @@ impl TaskDTO {
 pub struct AnswerDTO {
     pub points: Points,
     pub completed: bool,
+}
+
+pub struct SlotDTO {
+    pub id: SlotID,
+    pub start: NaiveTime,
+    pub site: Site,
+}
+
+impl From<Slot> for SlotDTO {
+    fn from(s: Slot) -> Self {
+        Self {
+            id: s.id().clone(),
+            start: s.start(),
+            site: s.site().clone(),
+        }
+    }
 }

@@ -1,3 +1,5 @@
+use crate::domain::models::Places;
+use crate::domain::models::SlotID;
 use crate::domain::models::{TeamID, TrackTag, UserID};
 
 #[derive(thiserror::Error, Debug)]
@@ -22,4 +24,16 @@ pub enum DomainError {
 
     #[error("track {0:?} not started")]
     TrackNotStarted(TrackTag),
+
+    #[error("can not reserve slot {0:?} with {1:?} places")]
+    CanNotReserveSlot(SlotID, Places),
+
+    #[error("user {0:?} has not reserve slot {1:?}")]
+    UserNotReservedSlot(UserID, SlotID),
+
+    #[error("team {0:?} already reserved slot {1:?}")]
+    TeamAlreadyReservedSlot(TeamID, SlotID),
+
+    #[error("team {0:?} not reserved slot")]
+    TeamNotReservedSlot(TeamID),
 }

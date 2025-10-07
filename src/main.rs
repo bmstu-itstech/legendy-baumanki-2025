@@ -5,10 +5,11 @@ use teloxide::prelude::*;
 
 use crate::app::usecases::app::App;
 use crate::app::usecases::{
-    AnswerTask, CheckAdmin, CheckCaptain, CheckRegistered, CheckStartedTrack, GetAvailableTasks,
-    GetAvailableTracks, GetCharacter, GetCharacterNames, GetCompletedTasks, GetMedia, GetPlayer,
-    GetProfile, GetTask, GetTeamWithMembers, GetTrackInProgress, GetUser, GetUserTeam,
-    GiveFeedback, StartTrack, UploadMedia,
+    AnswerTask, CancelReservation, CheckAdmin, CheckCaptain, CheckRegistered, CheckStartedTrack,
+    GetAvailableSlotStarts, GetAvailableTasks, GetAvailableTracks, GetCharacter, GetCharacterNames,
+    GetCompletedTasks, GetMedia, GetPlayer, GetProfile, GetTask, GetTeamReservedSlot,
+    GetTeamWithMembers, GetTrackInProgress, GetUser, GetUserTeam, GiveFeedback, ReserveSlot,
+    StartTrack, UploadMedia,
 };
 use crate::bot::dispatcher::BotDispatcher;
 use crate::infra::postgres::PostgresRepository;
@@ -36,10 +37,17 @@ async fn main() {
 
     let app = App {
         answer_task: AnswerTask::new(repos.clone(), repos.clone(), repos.clone(), repos.clone()),
+        cancel_reservation: CancelReservation::new(
+            repos.clone(),
+            repos.clone(),
+            repos.clone(),
+            repos.clone(),
+        ),
         check_admin: CheckAdmin::new(repos.clone()),
         check_captain: CheckCaptain::new(repos.clone()),
         check_registered: CheckRegistered::new(repos.clone()),
         check_started_track: CheckStartedTrack::new(repos.clone()),
+        get_available_slot_starts: GetAvailableSlotStarts::new(repos.clone()),
         get_available_tasks: GetAvailableTasks::new(repos.clone(), repos.clone()),
         get_character: GetCharacter::new(repos.clone(), repos.clone()),
         get_character_names: GetCharacterNames::new(repos.clone()),
@@ -48,12 +56,14 @@ async fn main() {
         get_player: GetPlayer::new(repos.clone(), repos.clone()),
         get_profile: GetProfile::new(repos.clone(), repos.clone()),
         get_task: GetTask::new(repos.clone(), repos.clone()),
+        get_team_reserved_slot: GetTeamReservedSlot::new(repos.clone(), repos.clone()),
         get_available_tracks: GetAvailableTracks::new(repos.clone()),
         get_team_with_members: GetTeamWithMembers::new(repos.clone(), repos.clone()),
         get_track_in_progress: GetTrackInProgress::new(repos.clone(), repos.clone(), repos.clone()),
         get_user: GetUser::new(repos.clone()),
         get_user_team: GetUserTeam::new(repos.clone()),
         give_feedback: GiveFeedback::new(repos.clone()),
+        reserve_slot: ReserveSlot::new(repos.clone(), repos.clone(), repos.clone(), repos.clone()),
         start_track: StartTrack::new(repos.clone(), repos.clone(), repos.clone(), repos.clone()),
         upload_media: UploadMedia::new(repos.clone()),
     };

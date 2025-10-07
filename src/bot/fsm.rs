@@ -1,9 +1,10 @@
+use chrono::NaiveTime;
 use serde::{Deserialize, Serialize};
 use teloxide::dispatching::dialogue::PostgresStorage;
 use teloxide::dispatching::dialogue::serializer::Json;
 use teloxide::prelude::Dialogue;
 
-use crate::domain::models::{FullName, MediaID, TaskID, TeamID, TrackTag};
+use crate::domain::models::{MediaID, TaskID, TrackTag};
 
 #[derive(Default, Clone, Serialize, Deserialize)]
 pub enum BotState {
@@ -23,6 +24,12 @@ pub enum BotState {
     CompletedTask(TrackTag),
     TaskAnswer(TrackTag, TaskID),
     TaskPhoto(TrackTag, TaskID),
+
+    // Slots
+    AcceptFinal,
+    SlotStart,
+    SlotPlaces(NaiveTime),
+    CancelReason,
 
     // Admin
     Media(MediaID),

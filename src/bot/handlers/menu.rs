@@ -11,6 +11,7 @@ use crate::app::usecases::{
 };
 use crate::bot::fsm::{BotDialogue, BotState};
 use crate::bot::handlers::shared::{send_enter_message, send_use_keyboard};
+use crate::bot::handlers::slots::{prompt_accept_final, prompt_cancel_reservation_reason};
 use crate::bot::handlers::tracks::prompt_track;
 use crate::bot::keyboards::{
     make_back_keyboard, make_characters_keyboard_with_back, make_menu_keyboard,
@@ -66,6 +67,19 @@ async fn receive_menu_option(
                 prompt_character_name(bot, msg, dialogue, &names).await?
             }
             keyboards::BTN_GIVE_FEEDBACK => prompt_feedback(bot, msg, dialogue).await?,
+            keyboards::BTN_RESERVE_SLOT => {
+                let player = get_player.execute(user_id).await?;
+                if player.is_captain {
+                    prompt_accept_final(bot, msg, dialogue).await?
+                } else {
+                    send_unknown_menu_option(&bot, &msg).await?;
+                    let player = get_player.execute(user_id).await?;
+                    prompt_menu(bot, msg, dialogue, &player).await?
+                }
+            }
+            keyboards::BTN_CANCEL_RESERVATION => {
+                prompt_cancel_reservation_reason(bot, msg, dialogue).await?
+            }
             _ => {
                 send_unknown_menu_option(&bot, &msg).await?;
                 let player = get_player.execute(user_id).await?;

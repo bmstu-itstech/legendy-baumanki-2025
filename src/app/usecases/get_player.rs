@@ -25,14 +25,16 @@ impl GetPlayer {
 
     pub async fn execute(&self, user_id: UserID) -> Result<PlayerDTO, AppError> {
         let user = self.user_provider.user(user_id).await?;
-        let solo_team = if let Some(team) = self.team_provider.team_by_member(user_id).await? {
-            team.is_solo()
-        } else {
-            true
-        };
+        let team = self
+            .team_provider
+            .team_by_member(user_id)
+            .await?
+            .ok_or(AppError::UserNotInTeam(user_id))?;
         Ok(PlayerDTO {
             username: user.username().cloned(),
-            solo_team,
+            solo_team: team.is_solo(),
+            reserved_slot: team.reserved_slot().is_some(),
+            is_captain: team.is_captain(user_id),
         })
     }
 }
